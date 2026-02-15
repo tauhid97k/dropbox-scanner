@@ -1,0 +1,173 @@
+generator client {
+    provider = "prisma-client"
+    output   = "generated"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model users {
+    id            String        @id @default(ulid())
+    name          String
+    email         String        @unique
+    emailVerified Boolean       @default(false)
+    image         String?
+    createdAt     DateTime      @default(now())
+    updatedAt     DateTime      @default(now()) @updatedAt
+    sessions      sessions[]
+    accounts      accounts[]
+    todos         todos[]
+    members       members[]
+    invitations   invitations[]
+    teamMembers   teamMembers[]
+}
+
+model sessions {
+    id                   String         @id @default(ulid())
+    expiresAt            DateTime
+    token                String         @unique
+    createdAt            DateTime       @default(now())
+    updatedAt            DateTime       @updatedAt
+    ipAddress            String?
+    userAgent            String?
+    userId               String
+    user                 users          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    activeOrganizationId String?
+    activeOrganization   organizations? @relation(fields: [activeOrganizationId], references: [id])
+    activeTeamId         String?
+    activeTeam           teams?         @relation(fields: [activeTeamId], references: [id])
+
+    @@index([userId, token])
+}
+
+model accounts {
+    id                    String    @id @default(ulid())
+    accountId             String
+    providerId            String
+    userId                String
+    user                  users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @updatedAt
+
+    @@index([userId])
+}
+
+model verifications {
+    id         String   @id @default(ulid())
+    identifier String
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @default(now()) @updatedAt
+
+    @@index([identifier])
+}
+
+model organizations {
+    id                String              @id @default(ulid())
+    name              String
+    slug              String              @unique
+    logo              String?
+    metadata          String?
+    createdAt         DateTime            @default(now())
+    updatedAt         DateTime            @updatedAt
+    members           members[]
+    invitations       invitations[]
+    organizationRoles organizationRoles[]
+    teams             teams[]
+    sessions          sessions[]
+}
+
+model members {
+    id             String        @id @default(ulid())
+    userId         String
+    user           users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    organizationId String
+    organization   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    role           String
+    createdAt      DateTime      @default(now())
+    updatedAt      DateTime      @updatedAt
+
+    @@unique([organizationId, userId])
+    @@index([userId])
+    @@index([organizationId])
+}
+
+model invitations {
+    id             String        @id @default(ulid())
+    email          String
+    inviterId      String
+    inviter        users         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+    organizationId String
+    organization   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    role           String
+    status         String
+    teamId         String?
+    team           teams?        @relation(fields: [teamId], references: [id])
+    createdAt      DateTime      @default(now())
+    updatedAt      DateTime      @updatedAt
+    expiresAt      DateTime
+
+    @@index([organizationId])
+    @@index([email])
+}
+
+model organizationRoles {
+    id             String        @id @default(ulid())
+    organizationId String
+    organization   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    role           String
+    permission     String
+    createdAt      DateTime      @default(now())
+    updatedAt      DateTime      @updatedAt
+
+    @@index([organizationId])
+}
+
+model teams {
+    id             String        @id @default(ulid())
+    name           String
+    organizationId String
+    organization   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    createdAt      DateTime      @default(now())
+    updatedAt      DateTime      @updatedAt
+    teamMembers    teamMembers[]
+    invitations    invitations[]
+    sessions       sessions[]
+
+    @@index([organizationId])
+}
+
+model teamMembers {
+    id        String   @id @default(ulid())
+    teamId    String
+    team      teams    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    userId    String
+    user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([teamId, userId])
+    @@index([teamId])
+    @@index([userId])
+}
+
+model todos {
+    id          String    @id @default(ulid())
+    title       String
+    description String?
+    dueTime     DateTime?
+    status      String    @default("pending")
+    userId      String
+    user        users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+}
