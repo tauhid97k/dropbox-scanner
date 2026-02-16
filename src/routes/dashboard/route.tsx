@@ -1,11 +1,11 @@
 import NotFound from '@/components/system/not-found'
-import { createFileRoute, Outlet } from '@tanstack/react-router'
+import { Outlet, createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardLayout,
   notFoundComponent: () => {
     return (
-      <div className="h-full grid place-items-center">
+      <div className="grid h-full place-items-center">
         <NotFound />
       </div>
     )

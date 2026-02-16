@@ -1,6 +1,6 @@
 import { createRouter as createTanStackRouter } from '@tanstack/react-router'
-import { routeTree } from './routeTree.gen'
 import NotFound from './components/system/not-found'
+import { routeTree } from './routeTree.gen'
 
 export function getRouter() {
   const router = createTanStackRouter({
@@ -10,7 +10,7 @@ export function getRouter() {
     defaultPreloadStaleTime: 0,
     defaultNotFoundComponent: () => {
       return (
-        <div className="min-h-screen grid place-items-center">
+        <div className="grid min-h-screen place-items-center">
           <NotFound />
         </div>
       )

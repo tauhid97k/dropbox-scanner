@@ -1,9 +1,10 @@
-import { type ClassValue, clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+import type { ClassValue } from 'clsx'
+import { clsx } from 'clsx'
 import { format } from 'date-fns'
+import { twMerge } from 'tailwind-merge'
 
 // CSS utility
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: Array<ClassValue>) {
   return twMerge(clsx(inputs))
 }
 

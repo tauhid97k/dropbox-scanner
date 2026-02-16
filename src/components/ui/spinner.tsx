@@ -1,5 +1,5 @@
-import type { ClassValue } from 'clsx'
 import { cn } from '@/lib/utils'
+import type { ClassValue } from 'clsx'
 
 const Spinner = ({ className }: { className?: ClassValue }) => {
   return (
