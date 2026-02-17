@@ -9,5 +9,5 @@
   "files.readonlyInclude": {
     "**/routeTree.gen.ts": true
   },
-  "cSpell.words": ["dotenvx", "fontsource", "shadcn"]
+  "cSpell.words": ["bprogress", "dotenvx", "fontsource", "shadcn"]
 }

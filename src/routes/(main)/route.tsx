@@ -1,4 +1,5 @@
 import { Outlet, createFileRoute } from '@tanstack/react-router'
+import Navbar from './-components/navbar'
 
 export const Route = createFileRoute('/(main)')({
   component: MainLayout,
@@ -7,7 +8,7 @@ export const Route = createFileRoute('/(main)')({
 function MainLayout() {
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Navbar Here */}
+      <Navbar />
       <Outlet />
       {/* Footer Here */}
     </div>

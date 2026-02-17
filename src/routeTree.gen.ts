@@ -13,7 +13,9 @@ import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as mainRouteRouteImport } from './routes/(main)/route'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as mainIndexRouteImport } from './routes/(main)/index'
+import { Route as mainAuthRouteRouteImport } from './routes/(main)/auth/route'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as mainAuthSignInRouteImport } from './routes/(main)/auth/sign-in'
 
 const DashboardRouteRoute = DashboardRouteRouteImport.update({
   id: '/dashboard',
@@ -34,42 +36,66 @@ const mainIndexRoute = mainIndexRouteImport.update({
   path: '/',
   getParentRoute: () => mainRouteRoute,
 } as any)
+const mainAuthRouteRoute = mainAuthRouteRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => mainRouteRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const mainAuthSignInRoute = mainAuthSignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => mainAuthRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/auth': typeof mainAuthRouteRouteWithChildren
   '/': typeof mainIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/auth/sign-in': typeof mainAuthSignInRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
+  '/auth': typeof mainAuthRouteRouteWithChildren
   '/': typeof mainIndexRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/auth/sign-in': typeof mainAuthSignInRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(main)': typeof mainRouteRouteWithChildren
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/(main)/auth': typeof mainAuthRouteRouteWithChildren
   '/(main)/': typeof mainIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/(main)/auth/sign-in': typeof mainAuthSignInRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/dashboard' | '/' | '/dashboard/' | '/api/auth/$'
+  fullPaths:
+    | '/dashboard'
+    | '/auth'
+    | '/'
+    | '/dashboard/'
+    | '/auth/sign-in'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/api/auth/$'
+  to: '/auth' | '/' | '/dashboard' | '/auth/sign-in' | '/api/auth/$'
   id:
     | '__root__'
     | '/(main)'
     | '/dashboard'
+    | '/(main)/auth'
     | '/(main)/'
     | '/dashboard/'
+    | '/(main)/auth/sign-in'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -109,6 +135,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof mainIndexRouteImport
       parentRoute: typeof mainRouteRoute
     }
+    '/(main)/auth': {
+      id: '/(main)/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof mainAuthRouteRouteImport
+      parentRoute: typeof mainRouteRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -116,14 +149,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(main)/auth/sign-in': {
+      id: '/(main)/auth/sign-in'
+      path: '/sign-in'
+      fullPath: '/auth/sign-in'
+      preLoaderRoute: typeof mainAuthSignInRouteImport
+      parentRoute: typeof mainAuthRouteRoute
+    }
   }
 }
 
+interface mainAuthRouteRouteChildren {
+  mainAuthSignInRoute: typeof mainAuthSignInRoute
+}
+
+const mainAuthRouteRouteChildren: mainAuthRouteRouteChildren = {
+  mainAuthSignInRoute: mainAuthSignInRoute,
+}
+
+const mainAuthRouteRouteWithChildren = mainAuthRouteRoute._addFileChildren(
+  mainAuthRouteRouteChildren,
+)
+
 interface mainRouteRouteChildren {
+  mainAuthRouteRoute: typeof mainAuthRouteRouteWithChildren
   mainIndexRoute: typeof mainIndexRoute
 }
 
 const mainRouteRouteChildren: mainRouteRouteChildren = {
+  mainAuthRouteRoute: mainAuthRouteRouteWithChildren,
   mainIndexRoute: mainIndexRoute,
 }
 
