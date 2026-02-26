@@ -11,7 +11,7 @@ export function getRouter() {
     defaultPreloadStaleTime: 0,
     defaultNotFoundComponent: () => {
       return (
-        <div className="grid min-h-screen place-items-center">
+        <div className="grid min-h-svh place-items-center">
           <NotFound />
         </div>
       )

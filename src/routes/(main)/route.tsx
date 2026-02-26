@@ -7,7 +7,7 @@ export const Route = createFileRoute('/(main)')({
 
 function MainLayout() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-svh flex-col">
       <Navbar />
       <Outlet />
       {/* Footer Here */}
