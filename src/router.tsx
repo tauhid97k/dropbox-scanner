@@ -18,15 +18,17 @@ export function getRouter() {
     },
   })
 
-  // Progress bar Start
-  router.subscribe('onBeforeNavigate', ({ pathChanged }) => {
-    pathChanged && BProgress.start()
-  })
+  if (typeof window !== 'undefined') {
+    // Progress bar Start
+    router.subscribe('onBeforeNavigate', ({ pathChanged }) => {
+      pathChanged && BProgress.start()
+    })
 
-  // Progress bar Done
-  router.subscribe('onResolved', () => {
-    BProgress.done()
-  })
+    // Progress bar Done
+    router.subscribe('onResolved', () => {
+      BProgress.done()
+    })
+  }
 
   return router
 }
