@@ -20,36 +20,46 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { signIn } from '@/lib/auth-client'
-import { signInSchema, type SignInSchemaType } from '@/schema/authSchema'
+import { signUp } from '@/lib/auth-client'
+import { signUpSchema, type SignUpSchemaType } from '@/schema/authSchema'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-import { LuEye, LuEyeOff, LuLock, LuMail } from 'react-icons/lu'
+import {
+  LuBuilding,
+  LuEye,
+  LuEyeOff,
+  LuLock,
+  LuMail,
+  LuUserRound,
+} from 'react-icons/lu'
 import { toast } from 'sonner'
 
-export const Route = createFileRoute('/(main)/auth/sign-in')({
-  component: SignInPage,
+export const Route = createFileRoute('/(main)/auth/sign-up')({
+  component: SignUpPage,
 })
 
-function SignInPage() {
+function SignUpPage() {
   const [pendingAuth, setPendingAuth] = useState<boolean>(false)
   const [formError, setFormError] = useState<string>('')
   const [showPassword, setShowPassword] = useState<boolean>(false)
 
   const form = useForm({
-    resolver: zodResolver(signInSchema),
+    resolver: zodResolver(signUpSchema),
     defaultValues: {
+      name: '',
       email: '',
+      organizationName: '',
       password: '',
     },
   })
 
   // On Submit
-  const onSubmit = async (values: SignInSchemaType) => {
-    await signIn.email(
+  const onSubmit = async (values: SignUpSchemaType) => {
+    await signUp.email(
       {
+        name: values.name,
         email: values.email,
         password: values.password,
       },
@@ -59,7 +69,7 @@ function SignInPage() {
           setFormError('')
         },
         onSuccess: () => {
-          toast.success('Login successful')
+          toast.success('Registration successful')
           Route.redirect({ to: '/dashboard' })
         },
         onError: (ctx) => {
@@ -74,15 +84,35 @@ function SignInPage() {
   return (
     <Card>
       <CardHeader className="items-center">
-        <CardTitle className="text-2xl">Sign In</CardTitle>
+        <CardTitle className="text-2xl">Sign Up</CardTitle>
         <CardDescription className="text-center">
-          Enter your account details to login
+          Create an account to continue
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <FieldSet disabled={pendingAuth}>
+        <form onSubmit={form.handleSubmit(onSubmit)} autoComplete="off">
+          <FieldSet>
             <FieldGroup>
+              <Controller
+                name="name"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="name">Full Name</FieldLabel>
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <LuUserRound />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        {...field}
+                        id="name"
+                        placeholder="John Doe"
+                      />
+                    </InputGroup>
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
               <Controller
                 name="email"
                 control={form.control}
@@ -105,6 +135,28 @@ function SignInPage() {
                 )}
               />
               <Controller
+                name="organizationName"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="organizationName">
+                      Organization Name
+                    </FieldLabel>
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <LuBuilding />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        {...field}
+                        id="organizationName"
+                        placeholder="acme inc"
+                      />
+                    </InputGroup>
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+              <Controller
                 name="password"
                 control={form.control}
                 render={({ field, fieldState }) => (
@@ -116,7 +168,7 @@ function SignInPage() {
                       </InputGroupAddon>
                       <InputGroupInput
                         type={showPassword ? 'text' : 'password'}
-                        autoComplete="current-password"
+                        autoComplete="new-password"
                         {...field}
                         id="password"
                         placeholder="password"
@@ -137,20 +189,20 @@ function SignInPage() {
                 className="mt-2 w-full"
                 isLoading={pendingAuth}
               >
-                Sign In
+                Sign Up
               </Button>
             </FieldGroup>
           </FieldSet>
         </form>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-1 text-center text-sm">
           <span className="text-muted-foreground">
-            Don&apos;t have an account?
+            Already have an account?
           </span>
           <Link
-            to="/auth/sign-up"
+            to="/auth/sign-in"
             className="underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-hidden"
           >
-            Sign Up
+            Sign In
           </Link>
         </div>
       </CardContent>
