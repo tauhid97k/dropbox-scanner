@@ -1,33 +1,27 @@
 import { Activity, FileText, Loader2, Package } from 'lucide-react'
 import { createFileRoute } from '@tanstack/react-router'
-import { ConnectionBanner } from '@/components/connection-banner'
 import { FilesTable } from '@/components/files-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-export const Route = createFileRoute('/dashboard/')({
-  component: DashboardPage,
+export const Route = createFileRoute('/dashboard/contacts/$contactId')({
+  component: ContactDetailPage,
 })
 
-function DashboardPage() {
+function ContactDetailPage() {
+  const { contactId } = Route.useParams()
+
   const stats = {
-    totalFiles: 156,
-    fileTypes: 8,
-    inQueue: 3,
-    processedToday: 12,
+    totalFiles: 12,
+    inQueue: 1,
+    fileTypes: 4,
+    completedToday: 2,
   }
 
   return (
     <div className="space-y-6">
-      <ConnectionBanner
-        dropboxConnected={false}
-        docketwiseConnected={false}
-      />
-
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of your document management system
-        </p>
+        <h1 className="text-2xl font-bold">Contact Files</h1>
+        <p className="text-muted-foreground">Files for contact ID: {contactId}</p>
       </div>
 
       {/* Stats Cards */}
@@ -39,7 +33,18 @@ function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalFiles}</div>
-            <p className="text-xs text-muted-foreground">All uploaded files</p>
+            <p className="text-xs text-muted-foreground">All files</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Queue</CardTitle>
+            <Loader2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.inQueue}</div>
+            <p className="text-xs text-muted-foreground">Processing</p>
           </CardContent>
         </Card>
 
@@ -56,23 +61,12 @@ function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Queue</CardTitle>
-            <Loader2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.inQueue}</div>
-            <p className="text-xs text-muted-foreground">Currently processing</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Processed Today</CardTitle>
+            <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.processedToday}</div>
-            <p className="text-xs text-muted-foreground">Completed today</p>
+            <div className="text-2xl font-bold">{stats.completedToday}</div>
+            <p className="text-xs text-muted-foreground">Today</p>
           </CardContent>
         </Card>
       </div>
@@ -80,10 +74,10 @@ function DashboardPage() {
       {/* Files Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Files</CardTitle>
+          <CardTitle>Files</CardTitle>
         </CardHeader>
         <CardContent>
-          <FilesTable />
+          <FilesTable clientId={contactId} />
         </CardContent>
       </Card>
     </div>

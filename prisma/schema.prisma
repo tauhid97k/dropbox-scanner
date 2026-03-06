@@ -7,7 +7,7 @@ datasource db {
     provider = "postgresql"
 }
 
-model users {
+model Users {
     id            String        @id @default(ulid())
     name          String
     email         String        @unique
@@ -15,15 +15,18 @@ model users {
     image         String?
     createdAt     DateTime      @default(now())
     updatedAt     DateTime      @default(now()) @updatedAt
-    sessions      sessions[]
-    accounts      accounts[]
-    todos         todos[]
-    members       members[]
-    invitations   invitations[]
-    teamMembers   teamMembers[]
+    sessions      Sessions[]
+    accounts      Accounts[]
+    members       Members[]
+    invitations   Invitations[]
+    teamMembers   TeamMembers[]
+    scanJobs      ScanJobs[]
+    emailSettings EmailSettings?
+    dropboxAccount DropboxAccounts?
+    todos         Todos[]
 }
 
-model sessions {
+model Sessions {
     id                   String         @id @default(ulid())
     expiresAt            DateTime
     token                String         @unique
@@ -32,21 +35,21 @@ model sessions {
     ipAddress            String?
     userAgent            String?
     userId               String
-    user                 users          @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user                 Users          @relation(fields: [userId], references: [id], onDelete: Cascade)
     activeOrganizationId String?
-    activeOrganization   organizations? @relation(fields: [activeOrganizationId], references: [id])
+    activeOrganization   Organizations? @relation(fields: [activeOrganizationId], references: [id])
     activeTeamId         String?
-    activeTeam           teams?         @relation(fields: [activeTeamId], references: [id])
+    activeTeam           Teams?         @relation(fields: [activeTeamId], references: [id])
 
     @@index([userId, token])
 }
 
-model accounts {
+model Accounts {
     id                    String    @id @default(ulid())
     accountId             String
     providerId            String
     userId                String
-    user                  users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user                  Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
     accessToken           String?
     refreshToken          String?
     idToken               String?
@@ -60,7 +63,7 @@ model accounts {
     @@index([userId])
 }
 
-model verifications {
+model Verifications {
     id         String   @id @default(ulid())
     identifier String
     value      String
@@ -71,7 +74,7 @@ model verifications {
     @@index([identifier])
 }
 
-model organizations {
+model Organizations {
     id                String              @id @default(ulid())
     name              String
     slug              String              @unique
@@ -79,19 +82,19 @@ model organizations {
     metadata          String?
     createdAt         DateTime            @default(now())
     updatedAt         DateTime            @updatedAt
-    members           members[]
-    invitations       invitations[]
-    organizationRoles organizationRoles[]
-    teams             teams[]
-    sessions          sessions[]
+    members           Members[]
+    invitations       Invitations[]
+    organizationRoles OrganizationRoles[]
+    teams             Teams[]
+    sessions          Sessions[]
 }
 
-model members {
+model Members {
     id             String        @id @default(ulid())
     userId         String
-    user           users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user           Users         @relation(fields: [userId], references: [id], onDelete: Cascade)
     organizationId String
-    organization   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    organization   Organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     role           String
     createdAt      DateTime      @default(now())
     updatedAt      DateTime      @updatedAt
@@ -101,17 +104,17 @@ model members {
     @@index([organizationId])
 }
 
-model invitations {
+model Invitations {
     id             String        @id @default(ulid())
     email          String
     inviterId      String
-    inviter        users         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+    inviter        Users         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
     organizationId String
-    organization   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    organization   Organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     role           String
     status         String
     teamId         String?
-    team           teams?        @relation(fields: [teamId], references: [id])
+    team           Teams?        @relation(fields: [teamId], references: [id])
     createdAt      DateTime      @default(now())
     updatedAt      DateTime      @updatedAt
     expiresAt      DateTime
@@ -120,10 +123,10 @@ model invitations {
     @@index([email])
 }
 
-model organizationRoles {
+model OrganizationRoles {
     id             String        @id @default(ulid())
     organizationId String
-    organization   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    organization   Organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     role           String
     permission     String
     createdAt      DateTime      @default(now())
@@ -132,26 +135,26 @@ model organizationRoles {
     @@index([organizationId])
 }
 
-model teams {
+model Teams {
     id             String        @id @default(ulid())
     name           String
     organizationId String
-    organization   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    organization   Organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     createdAt      DateTime      @default(now())
     updatedAt      DateTime      @updatedAt
-    teamMembers    teamMembers[]
-    invitations    invitations[]
-    sessions       sessions[]
+    teamMembers    TeamMembers[]
+    invitations    Invitations[]
+    sessions       Sessions[]
 
     @@index([organizationId])
 }
 
-model teamMembers {
+model TeamMembers {
     id        String   @id @default(ulid())
     teamId    String
-    team      teams    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    team      Teams    @relation(fields: [teamId], references: [id], onDelete: Cascade)
     userId    String
-    user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user      Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
@@ -160,14 +163,126 @@ model teamMembers {
     @@index([userId])
 }
 
-model todos {
+// Dropbox Scanner Models
+
+model DropboxAccounts {
+    id           String   @id @default(ulid())
+    userId       String   @unique
+    user         Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken  String
+    refreshToken String?
+    expiresAt    DateTime?
+    accountId    String
+    email        String?
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @default(now()) @updatedAt
+}
+
+model ScanJobs {
+    id              String          @id @default(ulid())
+    userId          String
+    user            Users           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+    // File info
+    originalName    String
+    contentHash     String
+    mimeType        String
+    fileSize        Int
+  
+    // Processing status
+    status          String          @default("pending") // pending, processing, completed, failed
+    progress        Int             @default(0) // 0-100
+    stage           String?         // upload, ai-analysis, dropbox, docketwise, email
+  
+    // Client/Matter assignment
+    suggestedClient String?
+    selectedClient  String?
+    suggestedMatter String?
+    selectedMatter  String?
+    aiConfidence    Float?
+  
+    // Results
+    dropboxPath     String?
+    docketwiseDocId String?
+  
+    // Error tracking
+    errorMessage    String?
+    retryCount      Int             @default(0)
+  
+    createdAt       DateTime        @default(now())
+    updatedAt       DateTime        @default(now()) @updatedAt
+    fileMetadata    FileMetadata?
+
+    @@index([userId, status])
+    @@index([contentHash])
+    @@index([createdAt])
+}
+
+model Matters {
+    id           String          @id @default(ulid())
+    docketwiseId String          @unique
+    clientName   String
+    matterType   String?
+    description  String?
+    status       String          @default("active")
+    lastSyncedAt DateTime        @default(now())
+    createdAt    DateTime        @default(now())
+    updatedAt    DateTime        @default(now()) @updatedAt
+
+    files        FileMetadata[]
+
+    @@index([clientName])
+}
+
+model FileMetadata {
+    id           String    @id @default(ulid())
+    scanJobId    String    @unique
+    scanJob      ScanJobs  @relation(fields: [scanJobId], references: [id])
+
+    // Storage locations
+    dropboxPath  String
+    docketwiseDocId String?
+    matterId     String?
+    matter       Matters?  @relation(fields: [matterId], references: [id])
+
+    // File details
+    clientName   String
+    fileName     String
+    fileType     String
+    uploadedAt   DateTime  @default(now())
+    uploadedBy   String
+
+    @@index([clientName])
+    @@index([matterId])
+    @@index([uploadedAt])
+}
+
+model EmailSettings {
+    id             String   @id @default(ulid())
+    userId         String   @unique
+    user           Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    recipients     String[] // Array of email addresses
+    notifyOnUpload Boolean  @default(true)
+    notifyOnError  Boolean  @default(true)
+
+    smtpHost       String?
+    smtpPort       Int?
+    smtpUser       String?
+    smtpPass       String? // Encrypted
+
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @default(now()) @updatedAt
+}
+
+model Todos {
     id          String    @id @default(ulid())
     title       String
     description String?
     dueTime     DateTime?
     status      String    @default("pending")
     userId      String
-    user        users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
     createdAt   DateTime  @default(now())
     updatedAt   DateTime  @updatedAt
 }

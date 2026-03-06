@@ -1,14 +1,17 @@
-import { Activity, FileText, Loader2, Package } from 'lucide-react'
+import { Activity, FileText, Grid, List, Loader2, Package } from 'lucide-react'
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { ConnectionBanner } from '@/components/connection-banner'
 import { FilesTable } from '@/components/files-table'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-export const Route = createFileRoute('/dashboard/')({
-  component: DashboardPage,
+export const Route = createFileRoute('/dashboard/files')({
+  component: FilesPage,
 })
 
-function DashboardPage() {
+function FilesPage() {
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+
   const stats = {
     totalFiles: 156,
     fileTypes: 8,
@@ -18,16 +21,27 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <ConnectionBanner
-        dropboxConnected={false}
-        docketwiseConnected={false}
-      />
-
-      <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of your document management system
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Files</h1>
+          <p className="text-muted-foreground">Manage all your uploaded files</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+          >
+            <Grid className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -77,13 +91,19 @@ function DashboardPage() {
         </Card>
       </div>
 
-      {/* Files Table */}
+      {/* Files Table/Grid */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Files</CardTitle>
+          <CardTitle>All Files</CardTitle>
         </CardHeader>
         <CardContent>
-          <FilesTable />
+          {viewMode === 'list' ? (
+            <FilesTable />
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              Grid view coming soon
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

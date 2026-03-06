@@ -13,7 +13,18 @@ import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as mainRouteRouteImport } from './routes/(main)/route'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as mainIndexRouteImport } from './routes/(main)/index'
+import { Route as DashboardUploadRouteImport } from './routes/dashboard/upload'
+import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
+import { Route as DashboardQueueRouteImport } from './routes/dashboard/queue'
+import { Route as DashboardNotificationsRouteImport } from './routes/dashboard/notifications'
+import { Route as DashboardMattersRouteImport } from './routes/dashboard/matters'
+import { Route as DashboardFilesRouteImport } from './routes/dashboard/files'
+import { Route as DashboardContactsRouteImport } from './routes/dashboard/contacts'
+import { Route as DashboardClientsRouteImport } from './routes/dashboard/clients'
+import { Route as ApiUploadRouteImport } from './routes/api.upload'
+import { Route as ApiProgressRouteImport } from './routes/api.progress'
 import { Route as mainAuthRouteRouteImport } from './routes/(main)/auth/route'
+import { Route as DashboardContactsContactIdRouteImport } from './routes/dashboard/contacts.$contactId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as mainAuthSignUpRouteImport } from './routes/(main)/auth/sign-up'
 import { Route as mainAuthSignInRouteImport } from './routes/(main)/auth/sign-in'
@@ -37,11 +48,67 @@ const mainIndexRoute = mainIndexRouteImport.update({
   path: '/',
   getParentRoute: () => mainRouteRoute,
 } as any)
+const DashboardUploadRoute = DashboardUploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardQueueRoute = DashboardQueueRouteImport.update({
+  id: '/queue',
+  path: '/queue',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardNotificationsRoute = DashboardNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardMattersRoute = DashboardMattersRouteImport.update({
+  id: '/matters',
+  path: '/matters',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardFilesRoute = DashboardFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardContactsRoute = DashboardContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardClientsRoute = DashboardClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const ApiUploadRoute = ApiUploadRouteImport.update({
+  id: '/api/upload',
+  path: '/api/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProgressRoute = ApiProgressRouteImport.update({
+  id: '/api/progress',
+  path: '/api/progress',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const mainAuthRouteRoute = mainAuthRouteRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => mainRouteRoute,
 } as any)
+const DashboardContactsContactIdRoute =
+  DashboardContactsContactIdRouteImport.update({
+    id: '/$contactId',
+    path: '/$contactId',
+    getParentRoute: () => DashboardContactsRoute,
+  } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -61,64 +128,132 @@ const mainAuthSignInRoute = mainAuthSignInRouteImport.update({
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/progress': typeof ApiProgressRoute
+  '/api/upload': typeof ApiUploadRoute
+  '/dashboard/clients': typeof DashboardClientsRoute
+  '/dashboard/contacts': typeof DashboardContactsRouteWithChildren
+  '/dashboard/files': typeof DashboardFilesRoute
+  '/dashboard/matters': typeof DashboardMattersRoute
+  '/dashboard/notifications': typeof DashboardNotificationsRoute
+  '/dashboard/queue': typeof DashboardQueueRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/upload': typeof DashboardUploadRoute
   '/': typeof mainIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/auth/sign-in': typeof mainAuthSignInRoute
   '/auth/sign-up': typeof mainAuthSignUpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/progress': typeof ApiProgressRoute
+  '/api/upload': typeof ApiUploadRoute
+  '/dashboard/clients': typeof DashboardClientsRoute
+  '/dashboard/contacts': typeof DashboardContactsRouteWithChildren
+  '/dashboard/files': typeof DashboardFilesRoute
+  '/dashboard/matters': typeof DashboardMattersRoute
+  '/dashboard/notifications': typeof DashboardNotificationsRoute
+  '/dashboard/queue': typeof DashboardQueueRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/upload': typeof DashboardUploadRoute
   '/': typeof mainIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/auth/sign-in': typeof mainAuthSignInRoute
   '/auth/sign-up': typeof mainAuthSignUpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/(main)': typeof mainRouteRouteWithChildren
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/(main)/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/progress': typeof ApiProgressRoute
+  '/api/upload': typeof ApiUploadRoute
+  '/dashboard/clients': typeof DashboardClientsRoute
+  '/dashboard/contacts': typeof DashboardContactsRouteWithChildren
+  '/dashboard/files': typeof DashboardFilesRoute
+  '/dashboard/matters': typeof DashboardMattersRoute
+  '/dashboard/notifications': typeof DashboardNotificationsRoute
+  '/dashboard/queue': typeof DashboardQueueRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
+  '/dashboard/upload': typeof DashboardUploadRoute
   '/(main)/': typeof mainIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/(main)/auth/sign-in': typeof mainAuthSignInRoute
   '/(main)/auth/sign-up': typeof mainAuthSignUpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/dashboard'
     | '/auth'
+    | '/api/progress'
+    | '/api/upload'
+    | '/dashboard/clients'
+    | '/dashboard/contacts'
+    | '/dashboard/files'
+    | '/dashboard/matters'
+    | '/dashboard/notifications'
+    | '/dashboard/queue'
+    | '/dashboard/settings'
+    | '/dashboard/upload'
     | '/'
     | '/dashboard/'
     | '/auth/sign-in'
     | '/auth/sign-up'
     | '/api/auth/$'
+    | '/dashboard/contacts/$contactId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/api/progress'
+    | '/api/upload'
+    | '/dashboard/clients'
+    | '/dashboard/contacts'
+    | '/dashboard/files'
+    | '/dashboard/matters'
+    | '/dashboard/notifications'
+    | '/dashboard/queue'
+    | '/dashboard/settings'
+    | '/dashboard/upload'
     | '/'
     | '/dashboard'
     | '/auth/sign-in'
     | '/auth/sign-up'
     | '/api/auth/$'
+    | '/dashboard/contacts/$contactId'
   id:
     | '__root__'
     | '/(main)'
     | '/dashboard'
     | '/(main)/auth'
+    | '/api/progress'
+    | '/api/upload'
+    | '/dashboard/clients'
+    | '/dashboard/contacts'
+    | '/dashboard/files'
+    | '/dashboard/matters'
+    | '/dashboard/notifications'
+    | '/dashboard/queue'
+    | '/dashboard/settings'
+    | '/dashboard/upload'
     | '/(main)/'
     | '/dashboard/'
     | '/(main)/auth/sign-in'
     | '/(main)/auth/sign-up'
     | '/api/auth/$'
+    | '/dashboard/contacts/$contactId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   mainRouteRoute: typeof mainRouteRouteWithChildren
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  ApiProgressRoute: typeof ApiProgressRoute
+  ApiUploadRoute: typeof ApiUploadRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -152,12 +287,89 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof mainIndexRouteImport
       parentRoute: typeof mainRouteRoute
     }
+    '/dashboard/upload': {
+      id: '/dashboard/upload'
+      path: '/upload'
+      fullPath: '/dashboard/upload'
+      preLoaderRoute: typeof DashboardUploadRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/settings': {
+      id: '/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/queue': {
+      id: '/dashboard/queue'
+      path: '/queue'
+      fullPath: '/dashboard/queue'
+      preLoaderRoute: typeof DashboardQueueRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/notifications': {
+      id: '/dashboard/notifications'
+      path: '/notifications'
+      fullPath: '/dashboard/notifications'
+      preLoaderRoute: typeof DashboardNotificationsRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/matters': {
+      id: '/dashboard/matters'
+      path: '/matters'
+      fullPath: '/dashboard/matters'
+      preLoaderRoute: typeof DashboardMattersRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/files': {
+      id: '/dashboard/files'
+      path: '/files'
+      fullPath: '/dashboard/files'
+      preLoaderRoute: typeof DashboardFilesRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/contacts': {
+      id: '/dashboard/contacts'
+      path: '/contacts'
+      fullPath: '/dashboard/contacts'
+      preLoaderRoute: typeof DashboardContactsRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/clients': {
+      id: '/dashboard/clients'
+      path: '/clients'
+      fullPath: '/dashboard/clients'
+      preLoaderRoute: typeof DashboardClientsRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/api/upload': {
+      id: '/api/upload'
+      path: '/api/upload'
+      fullPath: '/api/upload'
+      preLoaderRoute: typeof ApiUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/progress': {
+      id: '/api/progress'
+      path: '/api/progress'
+      fullPath: '/api/progress'
+      preLoaderRoute: typeof ApiProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(main)/auth': {
       id: '/(main)/auth'
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof mainAuthRouteRouteImport
       parentRoute: typeof mainRouteRoute
+    }
+    '/dashboard/contacts/$contactId': {
+      id: '/dashboard/contacts/$contactId'
+      path: '/$contactId'
+      fullPath: '/dashboard/contacts/$contactId'
+      preLoaderRoute: typeof DashboardContactsContactIdRouteImport
+      parentRoute: typeof DashboardContactsRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -211,11 +423,38 @@ const mainRouteRouteWithChildren = mainRouteRoute._addFileChildren(
   mainRouteRouteChildren,
 )
 
+interface DashboardContactsRouteChildren {
+  DashboardContactsContactIdRoute: typeof DashboardContactsContactIdRoute
+}
+
+const DashboardContactsRouteChildren: DashboardContactsRouteChildren = {
+  DashboardContactsContactIdRoute: DashboardContactsContactIdRoute,
+}
+
+const DashboardContactsRouteWithChildren =
+  DashboardContactsRoute._addFileChildren(DashboardContactsRouteChildren)
+
 interface DashboardRouteRouteChildren {
+  DashboardClientsRoute: typeof DashboardClientsRoute
+  DashboardContactsRoute: typeof DashboardContactsRouteWithChildren
+  DashboardFilesRoute: typeof DashboardFilesRoute
+  DashboardMattersRoute: typeof DashboardMattersRoute
+  DashboardNotificationsRoute: typeof DashboardNotificationsRoute
+  DashboardQueueRoute: typeof DashboardQueueRoute
+  DashboardSettingsRoute: typeof DashboardSettingsRoute
+  DashboardUploadRoute: typeof DashboardUploadRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
+  DashboardClientsRoute: DashboardClientsRoute,
+  DashboardContactsRoute: DashboardContactsRouteWithChildren,
+  DashboardFilesRoute: DashboardFilesRoute,
+  DashboardMattersRoute: DashboardMattersRoute,
+  DashboardNotificationsRoute: DashboardNotificationsRoute,
+  DashboardQueueRoute: DashboardQueueRoute,
+  DashboardSettingsRoute: DashboardSettingsRoute,
+  DashboardUploadRoute: DashboardUploadRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 
@@ -226,6 +465,8 @@ const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   mainRouteRoute: mainRouteRouteWithChildren,
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  ApiProgressRoute: ApiProgressRoute,
+  ApiUploadRoute: ApiUploadRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

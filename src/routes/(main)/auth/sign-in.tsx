@@ -1,3 +1,10 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { LuEye, LuEyeOff, LuLock, LuMail } from 'react-icons/lu'
+import { toast } from 'sonner'
+import type {SignInSchemaType} from '@/schema/authSchema';
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -21,13 +28,7 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { signIn } from '@/lib/auth-client'
-import { signInSchema, type SignInSchemaType } from '@/schema/authSchema'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
-import { LuEye, LuEyeOff, LuLock, LuMail } from 'react-icons/lu'
-import { toast } from 'sonner'
+import {  signInSchema } from '@/schema/authSchema'
 
 export const Route = createFileRoute('/(main)/auth/sign-in')({
   component: SignInPage,
