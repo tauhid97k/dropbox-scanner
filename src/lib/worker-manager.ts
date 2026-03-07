@@ -132,16 +132,50 @@ export async function ensureWorkersStarted() {
           const emailSettings = await prisma.emailSettings.findFirst({
             where: { userId },
           })
+
+          // Always create an email log for error notifications
+          const emailLog = await prisma.emailLog.create({
+            data: {
+              scanJobId,
+              recipients: emailSettings?.recipients || [],
+              subject: `File Upload Failed: ${originalName}`,
+              status:
+                !emailSettings?.notifyOnError ||
+                !emailSettings.recipients.length
+                  ? 'failed'
+                  : 'pending',
+              errorMessage:
+                !emailSettings?.notifyOnError ||
+                !emailSettings.recipients.length
+                  ? 'No recipients configured'
+                  : undefined,
+              fileName: originalName,
+              fileSize: job.data.fileSize,
+              fileType: mimeType,
+              clientName: clientName || selectedClient || undefined,
+              matterName: matterName || selectedMatter || undefined,
+              template: 'upload-error',
+            },
+          })
+
           if (
             emailSettings?.notifyOnError &&
             emailSettings.recipients.length > 0
           ) {
             const emailQueue = await getEmailQueue()
             await emailQueue.add('send-notification', {
+              emailLogId: emailLog.id,
               to: emailSettings.recipients,
               subject: `File Upload Failed: ${originalName}`,
               template: 'upload-error' as const,
-              data: { fileName: originalName, error: errorMessage },
+              data: {
+                fileName: originalName,
+                fileSize: job.data.fileSize,
+                fileType: mimeType,
+                clientName: clientName || selectedClient || 'Unknown',
+                matterName: matterName || selectedMatter || 'Unknown',
+                error: errorMessage,
+              },
             })
           }
 
@@ -239,19 +273,54 @@ export async function ensureWorkersStarted() {
           const emailSettings = await prisma.emailSettings.findFirst({
             where: { userId },
           })
+
+          // Get scanJob for file metadata
+          const scanJobData = await prisma.scanJobs.findUnique({
+            where: { id: scanJobId },
+            select: { fileSize: true, mimeType: true },
+          })
+
+          // Always create an email log for success notifications
+          const emailLog = await prisma.emailLog.create({
+            data: {
+              scanJobId,
+              recipients: emailSettings?.recipients || [],
+              subject: `Document Processed: ${fileName}`,
+              status:
+                !emailSettings?.notifyOnUpload ||
+                !emailSettings.recipients.length
+                  ? 'failed'
+                  : 'pending',
+              errorMessage:
+                !emailSettings?.notifyOnUpload ||
+                !emailSettings.recipients.length
+                  ? 'No recipients configured'
+                  : undefined,
+              fileName,
+              fileSize: scanJobData?.fileSize || undefined,
+              fileType: scanJobData?.mimeType || undefined,
+              clientName: clientName || undefined,
+              matterName: job.data.matterName || matterId || undefined,
+              template: 'upload-success',
+            },
+          })
+
           if (
             emailSettings?.notifyOnUpload &&
             emailSettings.recipients.length > 0
           ) {
             const emailQueue = await getEmailQueue()
             await emailQueue.add('send-notification', {
+              emailLogId: emailLog.id,
               to: emailSettings.recipients,
-              subject: `File Uploaded: ${fileName}`,
+              subject: `Document Processed: ${fileName}`,
               template: 'upload-success' as const,
               data: {
-                clientName,
+                clientName: clientName || 'Unknown',
+                matterName: job.data.matterName || matterId || 'Unknown',
                 fileName,
-                uploadedBy: userId,
+                fileSize: scanJobData?.fileSize || 0,
+                fileType: scanJobData?.mimeType || 'Unknown',
                 dropboxPath: job.data.filePath,
                 docketwiseDocId: docId,
               },
@@ -304,7 +373,7 @@ export async function ensureWorkersStarted() {
     const emailWorker = new Worker(
       'email-notifications',
       async (job) => {
-        const { to, subject, template, data } = job.data
+        const { emailLogId, to, subject, template, data } = job.data
 
         try {
           const nodemailer = await import('nodemailer')
@@ -318,39 +387,152 @@ export async function ensureWorkersStarted() {
             },
           })
 
-          let html = ''
-          switch (template) {
-            case 'upload-success':
-              html = `
-                <h2>File Upload Successful</h2>
-                <p>A new file has been uploaded and processed successfully.</p>
-                <ul>
-                  <li><strong>Client:</strong> ${data.clientName}</li>
-                  <li><strong>File:</strong> ${data.fileName}</li>
-                  <li><strong>Uploaded by:</strong> ${data.uploadedBy}</li>
-                  <li><strong>Time:</strong> ${new Date().toLocaleString()}</li>
-                  ${data.dropboxPath ? `<li><strong>Dropbox:</strong> ${data.dropboxPath}</li>` : ''}
-                </ul>
-              `
-              break
-            case 'upload-error':
-              html = `
-                <h2>File Upload Failed</h2>
-                <p>There was an error processing a file upload.</p>
-                <ul>
-                  <li><strong>File:</strong> ${data.fileName}</li>
-                  <li><strong>Error:</strong> ${data.error}</li>
-                  <li><strong>Time:</strong> ${new Date().toLocaleString()}</li>
-                </ul>
-              `
-              break
-            case 'summary':
-              html = `
-                <h2>Daily Upload Summary</h2>
-                <p>${data.summary}</p>
-              `
-              break
+          const formatFileSize = (bytes: number) => {
+            if (!bytes) return 'Unknown'
+            if (bytes < 1024) return `${bytes} B`
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+            return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
           }
+
+          let html = ''
+          const isSuccess = template === 'upload-success'
+          const headerBg = isSuccess
+            ? 'linear-gradient(135deg, #0061FE 0%, #0042A8 100%)'
+            : 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+          const statusIcon = isSuccess ? '✅' : '❌'
+          const statusTitle = isSuccess
+            ? 'Document Processed Successfully'
+            : 'Document Processing Failed'
+
+          html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1f2937; background-color: #f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
+          <!-- Header with Dropbox branding -->
+          <tr>
+            <td style="background: ${headerBg}; padding: 32px; text-align: center;">
+              <table cellpadding="0" cellspacing="0" style="margin: 0 auto 16px;">
+                <tr>
+                  <td style="vertical-align: middle;">
+                    <img src="https://cfl.dropboxstatic.com/static/images/logo_catalog/dropbox_logo_glyph_2024_m1-vflbgFqjD.svg" alt="Dropbox" style="height: 36px; width: 36px;" />
+                  </td>
+                  <td style="vertical-align: middle; padding-left: 10px;">
+                    <span style="font-size: 20px; font-weight: 700; color: #ffffff;">Dropbox Scanner</span>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: #ffffff;">
+                ${statusIcon} ${statusTitle}
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 32px;">
+              <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
+                ${
+                  isSuccess
+                    ? 'A document has been successfully uploaded to Dropbox and synced with Docketwise.'
+                    : 'There was an error processing a document upload. Please review the details below.'
+                }
+              </p>
+
+              <!-- Details Card -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 8px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 12px 0; font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Document Details</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; width: 120px; border-bottom: 1px solid #e5e7eb;">Client</td>
+                        <td style="padding: 10px 0; color: #111827; font-size: 14px; font-weight: 500; border-bottom: 1px solid #e5e7eb;">${data.clientName || 'Unknown'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">Matter</td>
+                        <td style="padding: 10px 0; color: #111827; font-size: 14px; font-weight: 500; border-bottom: 1px solid #e5e7eb;">${data.matterName || 'Unknown'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">File Name</td>
+                        <td style="padding: 10px 0; color: #111827; font-size: 14px; font-weight: 500; border-bottom: 1px solid #e5e7eb;">${data.fileName}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px; border-bottom: 1px solid #e5e7eb;">File Size</td>
+                        <td style="padding: 10px 0; color: #111827; font-size: 14px; font-weight: 500; border-bottom: 1px solid #e5e7eb;">${formatFileSize(data.fileSize)}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 10px 0; color: #6b7280; font-size: 14px;">File Type</td>
+                        <td style="padding: 10px 0; color: #111827; font-size: 14px; font-weight: 500;">${data.fileType || 'Unknown'}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              ${
+                !isSuccess && data.error
+                  ? `
+              <!-- Error Alert -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fee2e2; border-left: 4px solid #ef4444; border-radius: 4px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 16px;">
+                    <p style="margin: 0; font-size: 14px; color: #991b1b; font-weight: 500;">Error: ${data.error}</p>
+                  </td>
+                </tr>
+              </table>
+              `
+                  : ''
+              }
+
+              ${
+                isSuccess && data.dropboxPath
+                  ? `
+              <!-- Dropbox Path -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 4px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 16px;">
+                    <p style="margin: 0; font-size: 13px; color: #1e40af;"><strong>Dropbox Path:</strong> ${data.dropboxPath}</p>
+                  </td>
+                </tr>
+              </table>
+              `
+                  : ''
+              }
+
+              <p style="margin: 0; font-size: 14px; color: #6b7280;">
+                Processed on ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 32px; border-top: 2px solid #f3f4f6; background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #111827;">Dropbox Scanner</p>
+                    <p style="margin: 0; font-size: 13px; color: #6b7280;">Automated Document Processing</p>
+                    <p style="margin: 12px 0 0 0; font-size: 12px; color: #9ca3af;">You received this because you are a configured notification recipient.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
 
           const info = await transporter.sendMail({
             from: `"Dropbox Scanner" <${process.env.SMTP_USER}>`,
@@ -358,6 +540,14 @@ export async function ensureWorkersStarted() {
             subject,
             html,
           })
+
+          // Update email log as sent
+          if (emailLogId) {
+            await prisma.emailLog.update({
+              where: { id: emailLogId },
+              data: { status: 'sent' },
+            })
+          }
 
           console.log('[Worker] Email sent:', info.messageId)
           return {
@@ -367,6 +557,19 @@ export async function ensureWorkersStarted() {
           }
         } catch (error) {
           console.error('[Worker] Email sending failed:', error)
+
+          // Update email log as failed
+          if (emailLogId) {
+            await prisma.emailLog.update({
+              where: { id: emailLogId },
+              data: {
+                status: 'failed',
+                errorMessage:
+                  error instanceof Error ? error.message : 'Email send failed',
+              },
+            })
+          }
+
           throw error
         }
       },

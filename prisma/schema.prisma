@@ -212,6 +212,7 @@ model ScanJobs {
     createdAt       DateTime        @default(now())
     updatedAt       DateTime        @default(now()) @updatedAt
     fileMetadata    FileMetadata?
+    emailLogs       EmailLog[]
 
     @@index([userId, status])
     @@index([contentHash])
@@ -273,6 +274,32 @@ model EmailSettings {
 
     createdAt      DateTime @default(now())
     updatedAt      DateTime @default(now()) @updatedAt
+}
+
+model EmailLog {
+    id           String   @id @default(ulid())
+    scanJobId    String?
+    scanJob      ScanJobs? @relation(fields: [scanJobId], references: [id], onDelete: SetNull)
+
+    recipients   String[] // All recipients this was sent to
+    subject      String
+    status       String   @default("pending") // pending, sent, failed
+    errorMessage String?
+
+    // File / context metadata
+    fileName     String?
+    fileSize     Int?
+    fileType     String?
+    clientName   String?
+    matterName   String?
+    template     String?  // upload-success, upload-error, summary
+
+    sentAt       DateTime @default(now())
+    createdAt    DateTime @default(now())
+
+    @@index([scanJobId])
+    @@index([sentAt])
+    @@index([status])
 }
 
 model Todos {

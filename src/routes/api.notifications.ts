@@ -1,6 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/api/notifications')({
   server: {
@@ -18,37 +18,38 @@ export const Route = createFileRoute('/api/notifications')({
         }
 
         try {
-          // Fetch completed and failed jobs as notification history
-          const jobs = await prisma.scanJobs.findMany({
-            where: {
-              status: { in: ['completed', 'failed'] },
-            },
-            orderBy: { updatedAt: 'desc' },
+          const logs = await prisma.emailLog.findMany({
+            orderBy: { sentAt: 'desc' },
             take: 50,
             select: {
               id: true,
-              originalName: true,
-              selectedClient: true,
+              recipients: true,
+              subject: true,
               status: true,
               errorMessage: true,
-              updatedAt: true,
+              fileName: true,
+              fileSize: true,
+              fileType: true,
+              clientName: true,
+              matterName: true,
+              template: true,
+              sentAt: true,
             },
           })
 
-          // Get email settings for the current user
-          const emailSettings = await prisma.emailSettings.findFirst({
-            where: { userId: session.user.id },
-          })
-
-          const notifications = jobs.map((job) => ({
-            id: job.id,
-            recipient: emailSettings?.recipients?.[0] || 'N/A',
-            subject: job.status === 'completed'
-              ? `Document Processed: ${job.originalName}`
-              : `Document Processing Failed: ${job.originalName}`,
-            status: job.status === 'completed' ? 'sent' : 'failed',
-            sentAt: job.updatedAt.toISOString(),
-            fileName: job.originalName,
+          const notifications = logs.map((log) => ({
+            id: log.id,
+            recipients: log.recipients,
+            subject: log.subject,
+            status: log.status as 'sent' | 'failed' | 'pending',
+            errorMessage: log.errorMessage,
+            fileName: log.fileName || 'Unknown',
+            fileSize: log.fileSize,
+            fileType: log.fileType,
+            clientName: log.clientName,
+            matterName: log.matterName,
+            template: log.template,
+            sentAt: log.sentAt.toISOString(),
           }))
 
           return new Response(JSON.stringify({ notifications }), {
