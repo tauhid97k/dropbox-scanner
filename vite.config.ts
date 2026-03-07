@@ -26,7 +26,7 @@ const config = defineConfig({
     devtools(),
     nitro({
       rollupConfig: {
-        external: [/^@sentry\//, 'uuid', 'msgpackr', 'bullmq'],
+        external: [/^@sentry\//, 'uuid', 'msgpackr', 'bullmq', 'dropbox'],
         output: { banner: requireShim },
       },
     }),

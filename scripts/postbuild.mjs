@@ -21,7 +21,7 @@ const root = resolve(__dirname, '..')
 const target = join(root, '.output', 'server', 'node_modules')
 
 // Packages that are externalized in vite.config.ts → nitro rollupConfig.external
-const EXTERNAL_PACKAGES = ['bullmq']
+const EXTERNAL_PACKAGES = ['bullmq', 'dropbox']
 
 /**
  * Resolve a package from a given base directory. In pnpm, transitive deps
