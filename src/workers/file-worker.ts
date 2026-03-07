@@ -1,7 +1,7 @@
 import { createDropboxService } from '@/lib/dropbox-service'
 import { prisma } from '@/lib/prisma'
 import type { FileJobData } from '@/lib/queues'
-import { docketwiseQueue, emailQueue } from '@/lib/queues'
+import { getDocketwiseQueue, getEmailQueue } from '@/lib/queues'
 import { publishJobUpdate } from '@/lib/redis'
 import type { Job } from 'bullmq'
 import { Worker } from 'bullmq'
@@ -81,6 +81,7 @@ export const fileWorker = new Worker<FileJobData>(
       })
 
       // Enqueue Docketwise upload job
+      const docketwiseQueue = await getDocketwiseQueue()
       await docketwiseQueue.add('upload-document', {
         scanJobId,
         userId,
@@ -120,6 +121,7 @@ export const fileWorker = new Worker<FileJobData>(
         where: { userId },
       })
       if (emailSettings?.notifyOnError && emailSettings.recipients.length > 0) {
+        const emailQueue = await getEmailQueue()
         await emailQueue.add('send-notification', {
           to: emailSettings.recipients,
           subject: `File Upload Failed: ${originalName}`,

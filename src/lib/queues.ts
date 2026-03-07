@@ -1,50 +1,54 @@
-import { Queue } from 'bullmq'
-
 const connection = {
   url: process.env.REDIS_URL || 'redis://localhost:6379',
 }
 
-// File upload processing queue
-export const fileQueue = new Queue('file-processing', {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 5000,
-    },
-    removeOnComplete: 100,
-    removeOnFail: 50,
-  },
-})
+let _fileQueue: any
+let _docketwiseQueue: any
+let _emailQueue: any
 
-// Docketwise sync queue
-export const docketwiseQueue = new Queue('docketwise-sync', {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 10000,
-    },
-    removeOnComplete: 100,
-    removeOnFail: 50,
-  },
-})
+async function getQueue(name: string, opts: Record<string, any>) {
+  const { Queue } = await import('bullmq')
+  return new Queue(name, { connection, defaultJobOptions: opts })
+}
 
-// Email notification queue
-export const emailQueue = new Queue('email-notifications', {
-  connection,
-  defaultJobOptions: {
-    attempts: 5,
-    backoff: {
-      type: 'exponential',
-      delay: 30000,
-    },
-    removeOnComplete: 50,
-    removeOnFail: 20,
-  },
-})
+// File upload processing queue (lazy)
+export async function getFileQueue() {
+  if (!_fileQueue) {
+    _fileQueue = await getQueue('file-processing', {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: 100,
+      removeOnFail: 50,
+    })
+  }
+  return _fileQueue
+}
+
+// Docketwise sync queue (lazy)
+export async function getDocketwiseQueue() {
+  if (!_docketwiseQueue) {
+    _docketwiseQueue = await getQueue('docketwise-sync', {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 10000 },
+      removeOnComplete: 100,
+      removeOnFail: 50,
+    })
+  }
+  return _docketwiseQueue
+}
+
+// Email notification queue (lazy)
+export async function getEmailQueue() {
+  if (!_emailQueue) {
+    _emailQueue = await getQueue('email-notifications', {
+      attempts: 5,
+      backoff: { type: 'exponential', delay: 30000 },
+      removeOnComplete: 50,
+      removeOnFail: 20,
+    })
+  }
+  return _emailQueue
+}
 
 // Types for job data
 export interface FileJobData {

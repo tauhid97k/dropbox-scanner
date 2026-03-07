@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { fileQueue } from '@/lib/queues'
+import { getFileQueue } from '@/lib/queues'
 import { createFileRoute } from '@tanstack/react-router'
 import { createHash } from 'node:crypto'
 
@@ -79,6 +79,7 @@ export const Route = createFileRoute('/api/upload')({
           const base64Data = buffer.toString('base64')
 
           // Add to file processing queue
+          const fileQueue = await getFileQueue()
           await fileQueue.add('process-file', {
             scanJobId: scanJob.id,
             userId: session.user.id,

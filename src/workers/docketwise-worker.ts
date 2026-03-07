@@ -1,7 +1,7 @@
 import { createDocketwiseService } from '@/lib/docketwise-service'
 import { prisma } from '@/lib/prisma'
 import type { DocketwiseJobData } from '@/lib/queues'
-import { emailQueue } from '@/lib/queues'
+import { getEmailQueue } from '@/lib/queues'
 import { publishJobUpdate } from '@/lib/redis'
 import type { Job } from 'bullmq'
 import { Worker } from 'bullmq'
@@ -79,6 +79,7 @@ export const docketwiseWorker = new Worker<DocketwiseJobData>(
         emailSettings?.notifyOnUpload &&
         emailSettings.recipients.length > 0
       ) {
+        const emailQueue = await getEmailQueue()
         await emailQueue.add('send-notification', {
           to: emailSettings.recipients,
           subject: `File Uploaded: ${fileName}`,

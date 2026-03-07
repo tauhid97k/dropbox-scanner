@@ -20,7 +20,9 @@ const config = defineConfig({
   },
   plugins: [
     devtools(),
-    nitro({ rollupConfig: { external: [/^@sentry\//, 'uuid', 'msgpackr'] } }),
+    nitro({
+      rollupConfig: { external: [/^@sentry\//, 'uuid', 'msgpackr'] },
+    }),
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
