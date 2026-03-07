@@ -20,40 +20,50 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { signIn } from '@/lib/auth-client'
-import type { SignInSchemaType } from '@/schema/authSchema'
-import { signInSchema } from '@/schema/authSchema'
+import { resetPassword } from '@/lib/auth-client'
+import type { ResetPasswordSchemaType } from '@/schema/authSchema'
+import { resetPasswordSchema } from '@/schema/authSchema'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
-import { LuEye, LuEyeOff, LuLock, LuMail } from 'react-icons/lu'
+import { LuEye, LuEyeOff, LuLock } from 'react-icons/lu'
 import { toast } from 'sonner'
+import * as z from 'zod'
 
-export const Route = createFileRoute('/(main)/auth/sign-in')({
-  component: SignInPage,
+const searchSchema = z.object({
+  token: z.string().optional(),
 })
 
-function SignInPage() {
+export const Route = createFileRoute('/(main)/auth/reset-password')({
+  component: ResetPasswordPage,
+  validateSearch: (search) => searchSchema.parse(search),
+})
+
+function ResetPasswordPage() {
   const router = useRouter()
+  const { token } = Route.useSearch()
   const [pendingAuth, setPendingAuth] = useState<boolean>(false)
   const [formError, setFormError] = useState<string>('')
   const [showPassword, setShowPassword] = useState<boolean>(false)
 
   const form = useForm({
-    resolver: zodResolver(signInSchema),
+    resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
-      email: '',
       password: '',
     },
   })
 
-  // On Submit
-  const onSubmit = async (values: SignInSchemaType) => {
-    await signIn.email(
+  const onSubmit = async (values: ResetPasswordSchemaType) => {
+    if (!token) {
+      setFormError('Invalid token! Please check your email again')
+      return
+    }
+
+    await resetPassword(
       {
-        email: values.email,
-        password: values.password,
+        newPassword: values.password,
+        token,
       },
       {
         onRequest: () => {
@@ -61,8 +71,8 @@ function SignInPage() {
           setFormError('')
         },
         onSuccess: () => {
-          toast.success('Login successful')
-          router.navigate({ to: '/dashboard' })
+          toast.success('Password reset successful')
+          router.navigate({ to: '/auth/sign-in' })
         },
         onError: (ctx) => {
           setFormError(ctx.error.message)
@@ -76,36 +86,15 @@ function SignInPage() {
   return (
     <Card>
       <CardHeader className="items-center">
-        <CardTitle className="text-2xl">Sign In</CardTitle>
+        <CardTitle className="text-2xl">Reset Password</CardTitle>
         <CardDescription className="text-center">
-          Enter your account details to login
+          Enter new password
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <FieldSet disabled={pendingAuth}>
             <FieldGroup>
-              <Controller
-                name="email"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="email">Email</FieldLabel>
-                    <InputGroup>
-                      <InputGroupAddon>
-                        <LuMail />
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        autoComplete="email"
-                        {...field}
-                        id="email"
-                        placeholder="john@example.com"
-                      />
-                    </InputGroup>
-                    <FieldError errors={[fieldState.error]} />
-                  </Field>
-                )}
-              />
               <Controller
                 name="password"
                 control={form.control}
@@ -118,10 +107,9 @@ function SignInPage() {
                       </InputGroupAddon>
                       <InputGroupInput
                         type={showPassword ? 'text' : 'password'}
-                        autoComplete="current-password"
                         {...field}
                         id="password"
-                        placeholder="password"
+                        placeholder="Enter new password"
                       />
                       <InputGroupButton
                         onClick={() => setShowPassword(!showPassword)}
@@ -136,33 +124,14 @@ function SignInPage() {
               <FormError message={formError} />
               <Button
                 type="submit"
-                className="mt-2 w-full"
+                className="mt-4 w-full"
                 isLoading={pendingAuth}
               >
-                Sign In
+                Reset Password
               </Button>
             </FieldGroup>
           </FieldSet>
         </form>
-        <div className="mt-3 text-center">
-          <Link
-            to="/auth/request-password-reset"
-            className="text-sm text-muted-foreground underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-hidden"
-          >
-            Forgot password?
-          </Link>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-1 text-center text-sm">
-          <span className="text-muted-foreground">
-            Don&apos;t have an account?
-          </span>
-          <Link
-            to="/auth/sign-up"
-            className="underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-hidden"
-          >
-            Sign Up
-          </Link>
-        </div>
       </CardContent>
     </Card>
   )

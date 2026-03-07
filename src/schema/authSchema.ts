@@ -31,3 +31,25 @@ export const signInSchema = z.object({
   password: z.string().nonempty('Password is required'),
 })
 export type SignInSchemaType = z.infer<typeof signInSchema>
+
+// Request Password Reset Schema
+export const requestPasswordResetSchema = z.object({
+  email: z.email({
+    error: ({ input }) => {
+      if (!input) {
+        return 'Email is required'
+      }
+
+      return 'Invalid email'
+    },
+  }),
+})
+export type RequestPasswordResetSchemaType = z.infer<
+  typeof requestPasswordResetSchema
+>
+
+// Reset Password Schema
+export const resetPasswordSchema = z.object({
+  password: z.string().nonempty('Password is required'),
+})
+export type ResetPasswordSchemaType = z.infer<typeof resetPasswordSchema>

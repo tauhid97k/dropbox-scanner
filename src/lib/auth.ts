@@ -31,6 +31,97 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    sendResetPassword: async ({ user, url }) => {
+      try {
+        const nodemailer = await import('nodemailer')
+        const transporter = nodemailer.default.createTransport({
+          host: process.env.SMTP_HOST,
+          port: Number(process.env.SMTP_PORT) || 587,
+          secure: false,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+          },
+        })
+
+        const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1f2937; background-color: #f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
+          <tr>
+            <td style="background: linear-gradient(135deg, #0061FE 0%, #0042A8 100%); padding: 32px; text-align: center;">
+              <table cellpadding="0" cellspacing="0" style="margin: 0 auto 16px;">
+                <tr>
+                  <td style="vertical-align: middle;">
+                    <img src="https://cfl.dropboxstatic.com/static/images/logo_catalog/dropbox_logo_glyph_2024_m1-vflbgFqjD.svg" alt="Dropbox" style="height: 36px; width: 36px;" />
+                  </td>
+                  <td style="vertical-align: middle; padding-left: 10px;">
+                    <span style="font-size: 20px; font-weight: 700; color: #ffffff;">Dropbox Scanner</span>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: #ffffff;">
+                Password Reset Request
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px;">
+              <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">Hello${user.name ? ` ${user.name}` : ''},</p>
+              <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
+                We received a request to reset your password. Click the button below to set a new password.
+              </p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding: 8px 0 24px;">
+                    <a href="${url}" style="display: inline-block; background: linear-gradient(135deg, #0061FE 0%, #0042A8 100%); color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-size: 15px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Reset Password</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #6b7280;">If you didn't request this, you can safely ignore this email.</p>
+              <p style="margin: 0; font-size: 14px; color: #6b7280;">This link will expire in 1 hour.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 24px 32px; border-top: 2px solid #f3f4f6; background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #111827;">Dropbox Scanner</p>
+                    <p style="margin: 0; font-size: 13px; color: #6b7280;">Automated Document Processing</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+        await transporter.sendMail({
+          from: `"Dropbox Scanner" <${process.env.SMTP_USER}>`,
+          to: user.email,
+          subject: 'Reset Your Password - Dropbox Scanner',
+          html,
+          text: `Reset your password by visiting: ${url}`,
+        })
+
+        console.log(`[Auth] Password reset email sent to ${user.email}`)
+      } catch (error) {
+        console.error('[Auth] Failed to send password reset email:', error)
+      }
+    },
   },
   plugins: [
     organization({
