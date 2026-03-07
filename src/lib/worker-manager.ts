@@ -169,8 +169,15 @@ export async function ensureWorkersStarted() {
     const docketwiseWorker = new Worker(
       'docketwise-sync',
       async (job) => {
-        const { scanJobId, userId, clientName, matterId, fileName, fileData } =
-          job.data
+        const {
+          scanJobId,
+          userId,
+          clientName,
+          clientId,
+          matterId,
+          fileName,
+          fileData,
+        } = job.data
 
         try {
           await prisma.scanJobs.update({
@@ -193,11 +200,16 @@ export async function ensureWorkersStarted() {
             throw new Error('File data not available for Docketwise upload')
           }
 
+          const numericClientId = clientId ? parseInt(clientId, 10) : NaN
+          if (isNaN(numericClientId)) {
+            throw new Error(`Invalid Docketwise client ID: ${clientId}`)
+          }
+
           const doc = await docketwise.uploadDocument({
             title: fileName,
             filename: fileName,
             base64Data: fileData,
-            clientId: parseInt(clientName, 10),
+            clientId: numericClientId,
             matterId: matterId ? parseInt(matterId, 10) : undefined,
             description: `Uploaded via Dropbox Scanner on ${new Date().toISOString()}`,
           })

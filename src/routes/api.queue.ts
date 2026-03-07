@@ -31,6 +31,8 @@ export const Route = createFileRoute('/api/queue')({
               progress: true,
               createdAt: true,
               errorMessage: true,
+              dropboxPath: true,
+              docketwiseDocId: true,
             },
           })
 
@@ -44,6 +46,8 @@ export const Route = createFileRoute('/api/queue')({
             progress: job.progress || 0,
             createdAt: job.createdAt.toISOString(),
             errorMessage: job.errorMessage,
+            dropboxDone: !!job.dropboxPath,
+            docketwiseDone: !!job.docketwiseDocId,
           }))
 
           return new Response(JSON.stringify({ jobs: mapped }), {

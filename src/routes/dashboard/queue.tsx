@@ -3,7 +3,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { createFileRoute } from '@tanstack/react-router'
-import { CheckCircle, Clock, Loader2, RefreshCw, XCircle } from 'lucide-react'
+import {
+  CheckCircle,
+  Circle,
+  Clock,
+  Cloud,
+  Loader2,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
 export const Route = createFileRoute('/dashboard/queue')({
@@ -20,6 +28,8 @@ interface QueueJob {
   progress: number
   createdAt: string
   errorMessage?: string | null
+  dropboxDone: boolean
+  docketwiseDone: boolean
 }
 
 function QueuePage() {
@@ -118,18 +128,52 @@ function QueuePage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Client: {job.clientName}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Matter: {job.matterName}
-                  </p>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
+                    <span>
+                      Client:{' '}
+                      <strong className="text-foreground">
+                        {job.clientName}
+                      </strong>
+                    </span>
+                    <span>
+                      Matter:{' '}
+                      <strong className="text-foreground">
+                        {job.matterName}
+                      </strong>
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="flex items-center gap-1.5">
+                      <Cloud className="h-4 w-4" />
+                      Dropbox:
+                      {job.dropboxDone ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : job.status === 'failed' && !job.dropboxDone ? (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Cloud className="h-4 w-4" />
+                      Docketwise:
+                      {job.docketwiseDone ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : job.status === 'failed' &&
+                        job.dropboxDone &&
+                        !job.docketwiseDone ? (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </span>
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     Stage: {getStageLabel(job.stage)}
                   </p>
                   {job.errorMessage && (
-                    <p className="mt-1 text-sm text-destructive">
+                    <p className="text-sm text-destructive">
                       Error: {job.errorMessage}
                     </p>
                   )}
