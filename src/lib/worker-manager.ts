@@ -10,6 +10,8 @@ export async function ensureWorkersStarted() {
   if (_started) return
   _started = true
 
+  console.log('[Workers] Initializing workers...')
+
   try {
     const { Worker } = await import('bullmq')
 
@@ -148,6 +150,7 @@ export async function ensureWorkersStarted() {
       },
     )
 
+    fileWorker.on('ready', () => console.log('[Worker] file-processing ready'))
     fileWorker.on('failed', (job, err) => {
       console.error(`[Worker] File job ${job?.id} failed:`, err.message)
     })
@@ -156,9 +159,7 @@ export async function ensureWorkersStarted() {
     })
 
     // --- Docketwise Sync Worker ---
-    const { createDocketwiseService } = await import(
-      '@/lib/docketwise-service'
-    )
+    const { createDocketwiseService } = await import('@/lib/docketwise-service')
 
     const docketwiseWorker = new Worker(
       'docketwise-sync',
@@ -276,10 +277,7 @@ export async function ensureWorkersStarted() {
     )
 
     docketwiseWorker.on('failed', (job, err) => {
-      console.error(
-        `[Worker] Docketwise job ${job?.id} failed:`,
-        err.message,
-      )
+      console.error(`[Worker] Docketwise job ${job?.id} failed:`, err.message)
     })
     docketwiseWorker.on('completed', (job) => {
       console.log(`[Worker] Docketwise job ${job.id} completed`)
@@ -358,11 +356,19 @@ export async function ensureWorkersStarted() {
       { connection, concurrency: 2 },
     )
 
+    docketwiseWorker.on('ready', () =>
+      console.log('[Worker] docketwise-sync ready'),
+    )
+    emailWorker.on('ready', () =>
+      console.log('[Worker] email-notifications ready'),
+    )
     emailWorker.on('failed', (job, err) => {
       console.error(`[Worker] Email job ${job?.id} failed:`, err.message)
     })
 
-    console.log('[Workers] All workers started in server process')
+    console.log(
+      '[Workers] All workers registered, waiting for Redis connection...',
+    )
   } catch (error) {
     _started = false
     console.error('[Workers] Failed to start workers:', error)

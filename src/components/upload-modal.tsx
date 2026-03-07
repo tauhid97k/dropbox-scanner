@@ -75,46 +75,53 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
 
     setIsProcessing(true)
 
-    try {
-      const results = await Promise.allSettled(
-        selectedFiles.map(async (file) => {
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('selectedClient', clientId)
-          formData.append('selectedMatter', matterId)
+    // Queue all files to the server, then immediately close the modal.
+    // The actual processing (Dropbox upload, Docketwise sync, etc.) happens
+    // in the background via BullMQ workers — we don't wait for that.
+    const filesToUpload = [...selectedFiles]
+    const client = clientId
+    const matter = matterId
 
-          const response = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          })
+    // Reset state and close modal right away
+    setSelectedFiles([])
+    setClientId('')
+    setMatterId('')
+    setIsProcessing(false)
+    onOpenChange(false)
 
-          if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Upload failed')
-          }
+    toast.info(`Queuing ${filesToUpload.length} file(s) for processing...`)
 
-          return response.json()
-        }),
+    const results = await Promise.allSettled(
+      filesToUpload.map(async (file) => {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('selectedClient', client)
+        formData.append('selectedMatter', matter)
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Upload failed')
+        }
+
+        return response.json()
+      }),
+    )
+
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length
+    const failed = results.filter((r) => r.status === 'rejected').length
+
+    if (succeeded > 0) {
+      toast.success(
+        `${succeeded} file(s) queued — check the Queue page for progress`,
       )
-
-      const succeeded = results.filter((r) => r.status === 'fulfilled').length
-      const failed = results.filter((r) => r.status === 'rejected').length
-
-      if (succeeded > 0) {
-        toast.success(`${succeeded} file(s) queued for processing`)
-      }
-      if (failed > 0) {
-        toast.error(`${failed} file(s) failed to upload`)
-      }
-
-      setSelectedFiles([])
-      setClientId('')
-      setMatterId('')
-      onOpenChange(false)
-    } catch (error) {
-      toast.error('Failed to process files')
-    } finally {
-      setIsProcessing(false)
+    }
+    if (failed > 0) {
+      toast.error(`${failed} file(s) failed to queue`)
     }
   }
 
