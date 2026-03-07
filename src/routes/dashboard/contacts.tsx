@@ -1,3 +1,4 @@
+import { PageLoading } from '@/components/page-loading'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -5,7 +6,9 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
+import { isDocketwiseConnected } from '@/lib/auth-tokens'
 import { Link, createFileRoute } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
 import {
   AlertCircle,
   ChevronLeft,
@@ -17,8 +20,15 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+const checkDocketwise = createServerFn({ method: 'GET' }).handler(async () => {
+  const connected = await isDocketwiseConnected()
+  return { connected }
+})
+
 export const Route = createFileRoute('/dashboard/contacts')({
   component: ContactsPage,
+  pendingComponent: PageLoading,
+  loader: () => checkDocketwise(),
 })
 
 interface Contact {
@@ -31,32 +41,14 @@ interface Contact {
 }
 
 function ContactsPage() {
+  const { connected } = Route.useLoaderData()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [contacts, setContacts] = useState<Array<Contact>>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isConnected, setIsConnected] = useState<boolean | null>(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
-
-  // Check Docketwise connection
-  useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        const response = await fetch('/api/docketwise/status')
-        if (response.ok) {
-          const data = await response.json()
-          setIsConnected(data.docketwise)
-        } else {
-          setIsConnected(false)
-        }
-      } catch {
-        setIsConnected(false)
-      }
-    }
-    checkConnection()
-  }, [])
 
   // Debounce search input
   useEffect(() => {
@@ -93,28 +85,31 @@ function ContactsPage() {
   }, [])
 
   useEffect(() => {
-    if (isConnected) {
+    if (connected) {
       fetchContacts(page, debouncedSearch)
     } else {
       setIsLoading(false)
     }
-  }, [page, debouncedSearch, fetchContacts, isConnected])
+  }, [page, debouncedSearch, fetchContacts, connected])
 
   const getContactName = (contact: Contact) =>
     [contact.first_name, contact.last_name].filter(Boolean).join(' ') ||
     contact.company_name ||
     'Unknown'
 
-  if (isConnected === null) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-        <span>Checking connection...</span>
-      </div>
-    )
-  }
+  // Client-side filtering as fallback in case the API filter param doesn't work
+  const filteredContacts = debouncedSearch
+    ? contacts.filter((c) => {
+        const term = debouncedSearch.toLowerCase()
+        return (
+          getContactName(c).toLowerCase().includes(term) ||
+          (c.email && c.email.toLowerCase().includes(term)) ||
+          (c.company_name && c.company_name.toLowerCase().includes(term))
+        )
+      })
+    : contacts
 
-  if (!isConnected) {
+  if (!connected) {
     return (
       <div className="space-y-6">
         <div>
@@ -153,7 +148,7 @@ function ContactsPage() {
           </InputGroupAddon>
           <InputGroupInput
             type="search"
-            placeholder="Search contacts..."
+            placeholder="Search contacts by name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -162,13 +157,13 @@ function ContactsPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+          <Loader2 className="h-6 w-6 animate-spin" />
           <span>Loading contacts...</span>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {contacts.map((contact) => (
+            {filteredContacts.map((contact) => (
               <Card key={contact.id}>
                 <CardContent className="p-6">
                   <div className="space-y-4">
@@ -190,7 +185,7 @@ function ContactsPage() {
                         params={{ contactId: String(contact.id) }}
                       >
                         <Button variant="outline" size="sm">
-                          <Eye className="mr-2 h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                           View
                         </Button>
                       </Link>
@@ -201,9 +196,11 @@ function ContactsPage() {
             ))}
           </div>
 
-          {contacts.length === 0 && (
+          {filteredContacts.length === 0 && (
             <div className="py-12 text-center text-muted-foreground">
-              No contacts found
+              {debouncedSearch
+                ? `No contacts matching "${debouncedSearch}"`
+                : 'No contacts found'}
             </div>
           )}
 

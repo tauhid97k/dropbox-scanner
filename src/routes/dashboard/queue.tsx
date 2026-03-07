@@ -99,14 +99,14 @@ function QueuePage() {
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchJobs}>
-          <RefreshCw className="mr-2 h-4 w-4" />
+          <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+          <Loader2 className="h-6 w-6 animate-spin" />
           <span>Loading queue...</span>
         </div>
       ) : (

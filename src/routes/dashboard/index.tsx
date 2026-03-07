@@ -1,5 +1,6 @@
 import { ConnectionBanner } from '@/components/connection-banner'
 import { FilesTable } from '@/components/files-table'
+import { PageLoading } from '@/components/page-loading'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { isDocketwiseConnected, isDropboxConnected } from '@/lib/auth-tokens'
 import { prisma } from '@/lib/prisma'
@@ -32,6 +33,7 @@ const getDashboardData = createServerFn({ method: 'GET' }).handler(async () => {
 
 export const Route = createFileRoute('/dashboard/')({
   component: DashboardPage,
+  pendingComponent: PageLoading,
   loader: () => getDashboardData(),
 })
 

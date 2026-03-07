@@ -178,12 +178,12 @@ function UploadPage() {
           >
             {isUploading ? (
               <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
                 Uploading & Processing...
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-5 w-5" />
+                <Sparkles className="h-5 w-5" />
                 Upload & Process with AI
               </>
             )}

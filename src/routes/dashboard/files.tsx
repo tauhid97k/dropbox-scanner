@@ -1,3 +1,4 @@
+import { PageLoading } from '@/components/page-loading'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -36,6 +37,7 @@ const checkDropbox = createServerFn({ method: 'GET' }).handler(async () => {
 
 export const Route = createFileRoute('/dashboard/files')({
   component: FilesPage,
+  pendingComponent: PageLoading,
   loader: () => checkDropbox(),
 })
 
@@ -178,7 +180,7 @@ function FilesPage() {
             activeFolder ? fetchFiles(activeFolder) : fetchFolders()
           }
         >
-          <RefreshCw className="mr-2 h-4 w-4" />
+          <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
       </div>
@@ -186,7 +188,7 @@ function FilesPage() {
       <div className="flex items-center gap-4">
         {activeFolder && (
           <Button variant="outline" size="sm" onClick={goBack}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
         )}
@@ -212,7 +214,7 @@ function FilesPage() {
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+              <Loader2 className="h-6 w-6 animate-spin" />
               <span>
                 {activeFolder ? 'Loading files...' : 'Loading folders...'}
               </span>

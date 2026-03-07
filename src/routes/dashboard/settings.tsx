@@ -1,3 +1,4 @@
+import { PageLoading } from '@/components/page-loading'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -18,8 +19,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { authClient } from '@/lib/auth-client'
+import { isDocketwiseConnected, isDropboxConnected } from '@/lib/auth-tokens'
 import { createFileRoute } from '@tanstack/react-router'
-import { CheckCircle2, Loader2, Mail, Plug, X, XCircle } from 'lucide-react'
+import { createServerFn } from '@tanstack/react-start'
+import { CheckCircle2, Mail, Plug, X, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -29,8 +32,20 @@ interface ConnectionStatus {
   dropbox: boolean
 }
 
+const getConnectionStatus = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const [docketwise, dropbox] = await Promise.all([
+      isDocketwiseConnected(),
+      isDropboxConnected(),
+    ])
+    return { docketwise, dropbox }
+  },
+)
+
 export const Route = createFileRoute('/dashboard/settings')({
   component: SettingsPage,
+  pendingComponent: PageLoading,
+  loader: () => getConnectionStatus(),
 })
 
 function SettingsPage() {
@@ -68,15 +83,16 @@ function SettingsPage() {
 }
 
 function IntegrationsTab() {
-  const [isLoading, setIsLoading] = useState(false)
+  const loaderData = Route.useLoaderData()
   const [connections, setConnections] = useState<ConnectionStatus>({
-    docketwise: false,
-    dropbox: false,
+    docketwise: loaderData.docketwise,
+    dropbox: loaderData.dropbox,
   })
+  const [docketwiseLoading, setDocketwiseLoading] = useState(false)
+  const [dropboxLoading, setDropboxLoading] = useState(false)
 
-  const checkConnections = async () => {
+  const refreshConnections = async () => {
     try {
-      setIsLoading(true)
       const response = await fetch('/api/docketwise/status')
       if (response.ok) {
         const data = await response.json()
@@ -87,17 +103,13 @@ function IntegrationsTab() {
       }
     } catch (error) {
       console.error('Failed to check connections:', error)
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  useEffect(() => {
-    checkConnections()
-  }, [])
-
   const handleConnect = async (provider: 'docketwise' | 'dropbox') => {
-    setIsLoading(true)
+    const setLoading =
+      provider === 'docketwise' ? setDocketwiseLoading : setDropboxLoading
+    setLoading(true)
     try {
       // Delete any existing connection first (new connection replaces old)
       await fetch('/api/disconnect', {
@@ -117,12 +129,14 @@ function IntegrationsTab() {
       )
       console.error(error)
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   const handleDisconnect = async (provider: 'docketwise' | 'dropbox') => {
-    setIsLoading(true)
+    const setLoading =
+      provider === 'docketwise' ? setDocketwiseLoading : setDropboxLoading
+    setLoading(true)
     try {
       // Use server-side disconnect that deletes ALL accounts for this provider (firm-wide)
       const response = await fetch('/api/disconnect', {
@@ -138,12 +152,12 @@ function IntegrationsTab() {
       toast.success(
         `${provider === 'docketwise' ? 'Docketwise' : 'Dropbox'} disconnected`,
       )
-      await checkConnections()
+      await refreshConnections()
     } catch (error) {
       toast.error(`Failed to disconnect ${provider}`)
       console.error(error)
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
@@ -169,9 +183,7 @@ function IntegrationsTab() {
               </div>
             </div>
             <div className="flex items-center gap-2 sm:ml-auto">
-              {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              ) : connections.docketwise ? (
+              {connections.docketwise ? (
                 <div className="flex items-center gap-1.5 text-sm font-medium text-green-600">
                   <CheckCircle2 className="h-5 w-5 shrink-0" />
                   Connected
@@ -190,14 +202,16 @@ function IntegrationsTab() {
             <Button
               variant="outline"
               onClick={() => handleDisconnect('docketwise')}
-              disabled={isLoading}
+              disabled={docketwiseLoading}
+              isLoading={docketwiseLoading}
             >
               Disconnect
             </Button>
           ) : (
             <Button
               onClick={() => handleConnect('docketwise')}
-              disabled={isLoading}
+              disabled={docketwiseLoading}
+              isLoading={docketwiseLoading}
             >
               <img src="/docketwise.png" alt="" className="h-5 w-5" />
               Connect Docketwise
@@ -222,9 +236,7 @@ function IntegrationsTab() {
               </div>
             </div>
             <div className="flex items-center gap-2 sm:ml-auto">
-              {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              ) : connections.dropbox ? (
+              {connections.dropbox ? (
                 <div className="flex items-center gap-1.5 text-sm font-medium text-green-600">
                   <CheckCircle2 className="h-5 w-5 shrink-0" />
                   Connected
@@ -243,14 +255,16 @@ function IntegrationsTab() {
             <Button
               variant="outline"
               onClick={() => handleDisconnect('dropbox')}
-              disabled={isLoading}
+              disabled={dropboxLoading}
+              isLoading={dropboxLoading}
             >
               Disconnect
             </Button>
           ) : (
             <Button
               onClick={() => handleConnect('dropbox')}
-              disabled={isLoading}
+              disabled={dropboxLoading}
+              isLoading={dropboxLoading}
             >
               <img src="/dropbox.png" alt="" className="h-5 w-5" />
               Connect Dropbox
