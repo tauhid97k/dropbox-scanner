@@ -6,6 +6,7 @@
     "dev": "vite dev --port 3000",
     "dev:workers": "tsx --watch src/workers/index.ts",
     "build": "vite build",
+    "start": "node .output/server/index.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint",
