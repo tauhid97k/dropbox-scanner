@@ -27,6 +27,7 @@ import { Route as ApiProgressRouteImport } from './routes/api.progress'
 import { Route as ApiNotificationsRouteImport } from './routes/api.notifications'
 import { Route as ApiFilesRouteImport } from './routes/api.files'
 import { Route as ApiEmailSettingsRouteImport } from './routes/api.email-settings'
+import { Route as ApiDisconnectRouteImport } from './routes/api.disconnect'
 import { Route as mainAuthRouteRouteImport } from './routes/(main)/auth/route'
 import { Route as DashboardContactsContactIdRouteImport } from './routes/dashboard/contacts.$contactId'
 import { Route as ApiDropboxFilesRouteImport } from './routes/api.dropbox.files'
@@ -126,6 +127,11 @@ const ApiEmailSettingsRoute = ApiEmailSettingsRouteImport.update({
   path: '/api/email-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDisconnectRoute = ApiDisconnectRouteImport.update({
+  id: '/api/disconnect',
+  path: '/api/disconnect',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const mainAuthRouteRoute = mainAuthRouteRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -176,6 +182,7 @@ const mainAuthSignInRoute = mainAuthSignInRouteImport.update({
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/disconnect': typeof ApiDisconnectRoute
   '/api/email-settings': typeof ApiEmailSettingsRoute
   '/api/files': typeof ApiFilesRoute
   '/api/notifications': typeof ApiNotificationsRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/disconnect': typeof ApiDisconnectRoute
   '/api/email-settings': typeof ApiEmailSettingsRoute
   '/api/files': typeof ApiFilesRoute
   '/api/notifications': typeof ApiNotificationsRoute
@@ -233,6 +241,7 @@ export interface FileRoutesById {
   '/(main)': typeof mainRouteRouteWithChildren
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/(main)/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/disconnect': typeof ApiDisconnectRoute
   '/api/email-settings': typeof ApiEmailSettingsRoute
   '/api/files': typeof ApiFilesRoute
   '/api/notifications': typeof ApiNotificationsRoute
@@ -263,6 +272,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/dashboard'
     | '/auth'
+    | '/api/disconnect'
     | '/api/email-settings'
     | '/api/files'
     | '/api/notifications'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/api/disconnect'
     | '/api/email-settings'
     | '/api/files'
     | '/api/notifications'
@@ -319,6 +330,7 @@ export interface FileRouteTypes {
     | '/(main)'
     | '/dashboard'
     | '/(main)/auth'
+    | '/api/disconnect'
     | '/api/email-settings'
     | '/api/files'
     | '/api/notifications'
@@ -348,6 +360,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   mainRouteRoute: typeof mainRouteRouteWithChildren
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  ApiDisconnectRoute: typeof ApiDisconnectRoute
   ApiEmailSettingsRoute: typeof ApiEmailSettingsRoute
   ApiFilesRoute: typeof ApiFilesRoute
   ApiNotificationsRoute: typeof ApiNotificationsRoute
@@ -489,6 +502,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEmailSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/disconnect': {
+      id: '/api/disconnect'
+      path: '/api/disconnect'
+      fullPath: '/api/disconnect'
+      preLoaderRoute: typeof ApiDisconnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(main)/auth': {
       id: '/(main)/auth'
       path: '/auth'
@@ -625,6 +645,7 @@ const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   mainRouteRoute: mainRouteRouteWithChildren,
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  ApiDisconnectRoute: ApiDisconnectRoute,
   ApiEmailSettingsRoute: ApiEmailSettingsRoute,
   ApiFilesRoute: ApiFilesRoute,
   ApiNotificationsRoute: ApiNotificationsRoute,

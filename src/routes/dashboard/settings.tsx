@@ -99,6 +99,13 @@ function IntegrationsTab() {
   const handleConnect = async (provider: 'docketwise' | 'dropbox') => {
     setIsLoading(true)
     try {
+      // Delete any existing connection first (new connection replaces old)
+      await fetch('/api/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider }),
+      })
+
       await authClient.oauth2.link({
         providerId: provider,
         callbackURL: `/dashboard/settings?connected=${provider}`,
@@ -117,12 +124,15 @@ function IntegrationsTab() {
   const handleDisconnect = async (provider: 'docketwise' | 'dropbox') => {
     setIsLoading(true)
     try {
-      const { error } = await authClient.unlinkAccount({
-        providerId: provider,
+      // Use server-side disconnect that deletes ALL accounts for this provider (firm-wide)
+      const response = await fetch('/api/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider }),
       })
 
-      if (error) {
-        throw new Error(error.message)
+      if (!response.ok) {
+        throw new Error('Failed to disconnect')
       }
 
       toast.success(
