@@ -35,7 +35,9 @@ export async function ensureWorkersStarted() {
           mimeType,
           userId,
           selectedClient,
+          clientName,
           selectedMatter,
+          matterName,
         } = job.data
 
         try {
@@ -49,9 +51,10 @@ export async function ensureWorkersStarted() {
           })
 
           const buffer = Buffer.from(fileData, 'base64')
-          const clientName = selectedClient || 'unknown_client'
-          const matterType = selectedMatter ?? undefined
-
+          // Dropbox folder format: clientName_clientId (e.g. "John_Smith_25146161")
+          const folderName = clientName
+            ? `${clientName.replace(/\s+/g, '_')}_${selectedClient}`
+            : selectedClient || 'unknown_client'
           await prisma.scanJobs.update({
             where: { id: scanJobId },
             data: { progress: 30, stage: 'dropbox' },
@@ -67,7 +70,7 @@ export async function ensureWorkersStarted() {
           }
 
           const { path: dropboxPath } = await dropbox.uploadFile(
-            clientName,
+            folderName,
             buffer,
             originalName,
           )
@@ -87,7 +90,7 @@ export async function ensureWorkersStarted() {
             data: {
               scanJobId,
               dropboxPath,
-              clientName,
+              clientName: clientName || selectedClient || 'unknown',
               fileName: originalName,
               fileType: mimeType,
               uploadedBy: userId,
@@ -100,13 +103,15 @@ export async function ensureWorkersStarted() {
             scanJobId,
             userId,
             filePath: dropboxPath,
-            clientName,
+            clientName: clientName || selectedClient || 'unknown',
+            clientId: selectedClient,
             matterId: selectedMatter,
+            matterName: matterName || selectedMatter,
             fileName: originalName,
             fileData,
           })
 
-          return { success: true, dropboxPath, clientName, matterType }
+          return { success: true, dropboxPath, folderName }
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error'

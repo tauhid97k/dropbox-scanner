@@ -29,7 +29,9 @@ export const Route = createFileRoute('/api/upload')({
           const formData = await request.formData()
           const file = formData.get('file') as File | null
           const selectedClient = formData.get('selectedClient') as string | null
+          const clientName = formData.get('clientName') as string | null
           const selectedMatter = formData.get('selectedMatter') as string | null
+          const matterName = formData.get('matterName') as string | null
 
           if (!file) {
             return new Response(JSON.stringify({ error: 'No file provided' }), {
@@ -84,8 +86,8 @@ export const Route = createFileRoute('/api/upload')({
               status: 'pending',
               progress: 0,
               stage: 'upload',
-              selectedClient: selectedClient || undefined,
-              selectedMatter: selectedMatter || undefined,
+              selectedClient: clientName || selectedClient || undefined,
+              selectedMatter: matterName || selectedMatter || undefined,
             },
           })
 
@@ -103,7 +105,9 @@ export const Route = createFileRoute('/api/upload')({
             fileSize: file.size,
             contentHash,
             selectedClient: selectedClient || undefined,
+            clientName: clientName || undefined,
             selectedMatter: selectedMatter || undefined,
+            matterName: matterName || undefined,
           })
 
           return new Response(

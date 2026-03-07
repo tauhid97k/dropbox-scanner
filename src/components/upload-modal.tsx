@@ -21,7 +21,9 @@ interface UploadModalProps {
 export function UploadModal({ open, onOpenChange }: UploadModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<Array<File>>([])
   const [clientId, setClientId] = useState('')
+  const [clientName, setClientName] = useState('')
   const [matterId, setMatterId] = useState('')
+  const [matterName, setMatterName] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
@@ -80,12 +82,16 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
     // in the background via BullMQ workers — we don't wait for that.
     const filesToUpload = [...selectedFiles]
     const client = clientId
+    const clientLabel = clientName
     const matter = matterId
+    const matterLabel = matterName
 
     // Reset state and close modal right away
     setSelectedFiles([])
     setClientId('')
+    setClientName('')
     setMatterId('')
+    setMatterName('')
     setIsProcessing(false)
     onOpenChange(false)
 
@@ -96,7 +102,9 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
         const formData = new FormData()
         formData.append('file', file)
         formData.append('selectedClient', client)
+        formData.append('clientName', clientLabel)
         formData.append('selectedMatter', matter)
+        formData.append('matterName', matterLabel)
 
         const response = await fetch('/api/upload', {
           method: 'POST',
@@ -281,6 +289,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
               <AdvancedSelect
                 value={clientId}
                 onValueChange={setClientId}
+                onOptionSelect={(opt) => setClientName(opt?.label || '')}
                 placeholder="Select contact..."
                 searchPlaceholder="Search contacts..."
                 fetchOptions={fetchClients}
@@ -291,6 +300,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
               <AdvancedSelect
                 value={matterId}
                 onValueChange={setMatterId}
+                onOptionSelect={(opt) => setMatterName(opt?.label || '')}
                 placeholder="Select matter..."
                 searchPlaceholder="Search matters..."
                 fetchOptions={fetchMatters}

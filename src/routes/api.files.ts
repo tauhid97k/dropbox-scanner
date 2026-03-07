@@ -26,7 +26,13 @@ export const Route = createFileRoute('/api/files')({
 
         try {
           const where: Record<string, unknown> = {}
-          if (clientId) where.clientName = clientId
+          if (clientId) {
+            // Match by clientName containing the ID (for old data) or scanJob.selectedClient
+            where.OR = [
+              { clientName: { contains: clientId } },
+              { scanJob: { selectedClient: { contains: clientId } } },
+            ]
+          }
           if (matterId) where.scanJob = { selectedMatter: matterId }
 
           const [files, total] = await Promise.all([
@@ -36,8 +42,10 @@ export const Route = createFileRoute('/api/files')({
                 scanJob: {
                   select: {
                     status: true,
+                    selectedClient: true,
                     selectedMatter: true,
                     originalName: true,
+                    createdAt: true,
                   },
                 },
               },
@@ -55,6 +63,7 @@ export const Route = createFileRoute('/api/files')({
             clientName: f.clientName || 'Unknown',
             matterName: f.scanJob?.selectedMatter || null,
             uploadedAt: f.uploadedAt.toISOString(),
+            createdAt: (f.scanJob?.createdAt || f.uploadedAt).toISOString(),
             status: f.scanJob?.status || 'completed',
             dropboxPath: f.dropboxPath,
           }))

@@ -14,6 +14,7 @@ interface QueueJob {
   id: string
   fileName: string
   clientName: string
+  matterName: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   stage: string
   progress: number
@@ -40,9 +41,6 @@ function QueuePage() {
 
   useEffect(() => {
     fetchJobs()
-    // Poll every 5 seconds for updates
-    const interval = setInterval(fetchJobs, 5000)
-    return () => clearInterval(interval)
   }, [fetchJobs])
 
   const getStageLabel = (stage: string) => {
@@ -123,6 +121,9 @@ function QueuePage() {
                 <div>
                   <p className="text-sm text-muted-foreground">
                     Client: {job.clientName}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Matter: {job.matterName}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Stage: {getStageLabel(job.stage)}

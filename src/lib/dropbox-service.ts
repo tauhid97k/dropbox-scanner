@@ -122,12 +122,12 @@ export class DropboxService {
   }
 
   // Normalize client name for folder naming
+  // Preserves underscores and digits (e.g. "John_Smith_25146161")
   private normalizeClientName(name: string): string {
     return name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/[^a-zA-Z0-9_\s-]/g, '')
       .replace(/\s+/g, '_')
-      .substring(0, 50)
+      .substring(0, 80)
   }
 
   // Generate timestamped filename

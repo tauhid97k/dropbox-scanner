@@ -25,6 +25,7 @@ export interface AdvancedSelectOption {
 interface AdvancedSelectProps {
   value?: string
   onValueChange: (value: string) => void
+  onOptionSelect?: (option: AdvancedSelectOption | null) => void
   placeholder?: string
   searchPlaceholder?: string
   emptyText?: string
@@ -42,6 +43,7 @@ interface AdvancedSelectProps {
 export function AdvancedSelect({
   value,
   onValueChange,
+  onOptionSelect,
   placeholder = 'Select option...',
   searchPlaceholder = 'Search...',
   emptyText = 'No results found.',
@@ -185,9 +187,16 @@ export function AdvancedSelect({
                           key={option.value}
                           value={option.value}
                           onSelect={(currentValue) => {
-                            onValueChange(
-                              currentValue === value ? '' : currentValue,
-                            )
+                            const newValue =
+                              currentValue === value ? '' : currentValue
+                            onValueChange(newValue)
+                            if (onOptionSelect) {
+                              const selected = newValue
+                                ? options.find((o) => o.value === newValue) ||
+                                  null
+                                : null
+                              onOptionSelect(selected)
+                            }
                             setOpen(false)
                           }}
                           className={cn(

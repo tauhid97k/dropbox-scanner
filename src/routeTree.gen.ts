@@ -31,6 +31,7 @@ import { Route as ApiDisconnectRouteImport } from './routes/api.disconnect'
 import { Route as mainAuthRouteRouteImport } from './routes/(main)/auth/route'
 import { Route as DashboardContactsContactIdRouteImport } from './routes/dashboard/contacts.$contactId'
 import { Route as ApiDropboxFilesRouteImport } from './routes/api.dropbox.files'
+import { Route as ApiDropboxDownloadRouteImport } from './routes/api.dropbox.download'
 import { Route as ApiDocketwiseStatusRouteImport } from './routes/api.docketwise.status'
 import { Route as ApiDocketwiseMattersRouteImport } from './routes/api.docketwise.matters'
 import { Route as ApiDocketwiseContactsRouteImport } from './routes/api.docketwise.contacts'
@@ -148,6 +149,11 @@ const ApiDropboxFilesRoute = ApiDropboxFilesRouteImport.update({
   path: '/api/dropbox/files',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDropboxDownloadRoute = ApiDropboxDownloadRouteImport.update({
+  id: '/api/dropbox/download',
+  path: '/api/dropbox/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDocketwiseStatusRoute = ApiDocketwiseStatusRouteImport.update({
   id: '/api/docketwise/status',
   path: '/api/docketwise/status',
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/api/docketwise/contacts': typeof ApiDocketwiseContactsRoute
   '/api/docketwise/matters': typeof ApiDocketwiseMattersRoute
   '/api/docketwise/status': typeof ApiDocketwiseStatusRoute
+  '/api/dropbox/download': typeof ApiDropboxDownloadRoute
   '/api/dropbox/files': typeof ApiDropboxFilesRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
 }
@@ -233,6 +240,7 @@ export interface FileRoutesByTo {
   '/api/docketwise/contacts': typeof ApiDocketwiseContactsRoute
   '/api/docketwise/matters': typeof ApiDocketwiseMattersRoute
   '/api/docketwise/status': typeof ApiDocketwiseStatusRoute
+  '/api/dropbox/download': typeof ApiDropboxDownloadRoute
   '/api/dropbox/files': typeof ApiDropboxFilesRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
 }
@@ -264,6 +272,7 @@ export interface FileRoutesById {
   '/api/docketwise/contacts': typeof ApiDocketwiseContactsRoute
   '/api/docketwise/matters': typeof ApiDocketwiseMattersRoute
   '/api/docketwise/status': typeof ApiDocketwiseStatusRoute
+  '/api/dropbox/download': typeof ApiDropboxDownloadRoute
   '/api/dropbox/files': typeof ApiDropboxFilesRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
 }
@@ -295,6 +304,7 @@ export interface FileRouteTypes {
     | '/api/docketwise/contacts'
     | '/api/docketwise/matters'
     | '/api/docketwise/status'
+    | '/api/dropbox/download'
     | '/api/dropbox/files'
     | '/dashboard/contacts/$contactId'
   fileRoutesByTo: FileRoutesByTo
@@ -323,6 +333,7 @@ export interface FileRouteTypes {
     | '/api/docketwise/contacts'
     | '/api/docketwise/matters'
     | '/api/docketwise/status'
+    | '/api/dropbox/download'
     | '/api/dropbox/files'
     | '/dashboard/contacts/$contactId'
   id:
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/api/docketwise/contacts'
     | '/api/docketwise/matters'
     | '/api/docketwise/status'
+    | '/api/dropbox/download'
     | '/api/dropbox/files'
     | '/dashboard/contacts/$contactId'
   fileRoutesById: FileRoutesById
@@ -371,6 +383,7 @@ export interface RootRouteChildren {
   ApiDocketwiseContactsRoute: typeof ApiDocketwiseContactsRoute
   ApiDocketwiseMattersRoute: typeof ApiDocketwiseMattersRoute
   ApiDocketwiseStatusRoute: typeof ApiDocketwiseStatusRoute
+  ApiDropboxDownloadRoute: typeof ApiDropboxDownloadRoute
   ApiDropboxFilesRoute: typeof ApiDropboxFilesRoute
 }
 
@@ -530,6 +543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDropboxFilesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/dropbox/download': {
+      id: '/api/dropbox/download'
+      path: '/api/dropbox/download'
+      fullPath: '/api/dropbox/download'
+      preLoaderRoute: typeof ApiDropboxDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/docketwise/status': {
       id: '/api/docketwise/status'
       path: '/api/docketwise/status'
@@ -656,6 +676,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDocketwiseContactsRoute: ApiDocketwiseContactsRoute,
   ApiDocketwiseMattersRoute: ApiDocketwiseMattersRoute,
   ApiDocketwiseStatusRoute: ApiDocketwiseStatusRoute,
+  ApiDropboxDownloadRoute: ApiDropboxDownloadRoute,
   ApiDropboxFilesRoute: ApiDropboxFilesRoute,
 }
 export const routeTree = rootRouteImport

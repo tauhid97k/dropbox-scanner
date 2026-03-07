@@ -1,6 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/api/queue')({
   server: {
@@ -25,6 +25,7 @@ export const Route = createFileRoute('/api/queue')({
               id: true,
               originalName: true,
               selectedClient: true,
+              selectedMatter: true,
               status: true,
               stage: true,
               progress: true,
@@ -37,6 +38,7 @@ export const Route = createFileRoute('/api/queue')({
             id: job.id,
             fileName: job.originalName,
             clientName: job.selectedClient || 'Unassigned',
+            matterName: job.selectedMatter || 'Unassigned',
             status: job.status,
             stage: job.stage || 'upload',
             progress: job.progress || 0,

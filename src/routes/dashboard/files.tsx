@@ -20,6 +20,7 @@ import { createServerFn } from '@tanstack/react-start'
 import {
   AlertCircle,
   ArrowLeft,
+  Download,
   FileIcon,
   FileText,
   Folder,
@@ -187,7 +188,7 @@ function FilesPage() {
 
       <div className="flex items-center gap-4">
         {activeFolder && (
-          <Button variant="outline" size="sm" onClick={goBack}>
+          <Button variant="outline" onClick={goBack} className="h-10 shrink-0">
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
@@ -234,6 +235,7 @@ function FilesPage() {
                       <TableHead>Size</TableHead>
                       <TableHead>Modified</TableHead>
                       <TableHead>Path</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -255,6 +257,20 @@ function FilesPage() {
                         </TableCell>
                         <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
                           {file.path}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              window.open(
+                                `/api/dropbox/download?path=${encodeURIComponent(file.path)}`,
+                                '_blank',
+                              )
+                            }}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
