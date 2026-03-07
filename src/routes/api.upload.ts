@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getFileQueue } from '@/lib/queues'
+import { ensureWorkersStarted } from '@/lib/worker-manager'
 import { createFileRoute } from '@tanstack/react-router'
 import { createHash } from 'node:crypto'
 
@@ -9,6 +10,9 @@ export const Route = createFileRoute('/api/upload')({
     handlers: {
       POST: async ({ request }) => {
         try {
+          // Start BullMQ workers if not already running
+          await ensureWorkersStarted()
+
           // Check authentication using better-auth
           const session = await auth.api.getSession({
             headers: request.headers,
