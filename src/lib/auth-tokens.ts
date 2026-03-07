@@ -43,8 +43,15 @@ export async function getDropboxToken(): Promise<string | null> {
   })
 
   if (!account) {
+    console.warn(
+      '[Dropbox] No Dropbox account found in DB — please connect Dropbox in Settings',
+    )
     return null
   }
+
+  console.log(
+    `[Dropbox] Found account for user ${account.userId}, refreshToken exists: ${!!account.refreshToken}`,
+  )
 
   try {
     const result = await auth.api.getAccessToken({
@@ -54,9 +61,17 @@ export async function getDropboxToken(): Promise<string | null> {
       },
     })
 
-    return result?.accessToken || null
+    if (!result?.accessToken) {
+      console.warn('[Dropbox] getAccessToken returned no token')
+      return null
+    }
+
+    console.log(
+      `[Dropbox] Got access token (${result.accessToken.substring(0, 8)}...)`,
+    )
+    return result.accessToken
   } catch (error) {
-    console.error('Error getting Dropbox access token:', error)
+    console.error('[Dropbox] Error getting access token:', error)
     return null
   }
 }

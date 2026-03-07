@@ -91,6 +91,7 @@ export const auth = betterAuth({
             'account_info.read',
           ],
           pkce: true,
+          accessType: 'offline',
           getUserInfo: async (tokens) => {
             // Fetch Dropbox account info (POST required by Dropbox API)
             const response = await fetch(
