@@ -1,6 +1,3 @@
-import { Loader2, Upload, X } from 'lucide-react'
-import { useState } from 'react'
-import { toast } from 'sonner'
 import { AdvancedSelect } from '@/components/advanced-select'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,8 +7,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { cn } from '@/lib/utils'
+import { Loader2, Upload, X } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface UploadModalProps {
   open: boolean
@@ -76,9 +76,37 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
     setIsProcessing(true)
 
     try {
-      // TODO: Implement actual upload logic
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      toast.success('Files queued for processing')
+      const results = await Promise.allSettled(
+        selectedFiles.map(async (file) => {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('selectedClient', clientId)
+          formData.append('selectedMatter', matterId)
+
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Upload failed')
+          }
+
+          return response.json()
+        }),
+      )
+
+      const succeeded = results.filter((r) => r.status === 'fulfilled').length
+      const failed = results.filter((r) => r.status === 'rejected').length
+
+      if (succeeded > 0) {
+        toast.success(`${succeeded} file(s) queued for processing`)
+      }
+      if (failed > 0) {
+        toast.error(`${failed} file(s) failed to upload`)
+      }
+
       setSelectedFiles([])
       setClientId('')
       setMatterId('')
@@ -91,26 +119,65 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
   }
 
   const fetchClients = async (search: string, page: number) => {
-    // TODO: Implement actual API call
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    return {
-      options: [
-        { value: '1', label: 'John Doe', docketwiseId: 8116 },
-        { value: '2', label: 'Jane Smith', docketwiseId: 8117 },
-      ],
-      hasMore: false,
+    try {
+      const params = new URLSearchParams({ page: String(page), type: 'Person' })
+      if (search) params.set('filter', search)
+      const response = await fetch(`/api/docketwise/contacts?${params}`)
+      if (!response.ok) throw new Error('Failed to fetch contacts')
+      const data = await response.json()
+
+      const options = (data.contacts || []).map(
+        (contact: {
+          id: number
+          first_name: string | null
+          last_name: string | null
+          company_name: string | null
+        }) => {
+          const name =
+            [contact.first_name, contact.last_name].filter(Boolean).join(' ') ||
+            contact.company_name ||
+            'Unknown'
+          return {
+            value: String(contact.id),
+            label: name,
+            docketwiseId: contact.id,
+          }
+        },
+      )
+
+      return {
+        options,
+        hasMore: data.pagination?.nextPage !== null,
+      }
+    } catch (error) {
+      console.error('Failed to fetch clients:', error)
+      return { options: [], hasMore: false }
     }
   }
 
   const fetchMatters = async (search: string, page: number) => {
-    // TODO: Implement actual API call
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    return {
-      options: [
-        { value: '1', label: 'I-485 Adjustment of Status', docketwiseId: 1 },
-        { value: '2', label: 'N-400 Naturalization', docketwiseId: 2 },
-      ],
-      hasMore: false,
+    try {
+      const params = new URLSearchParams({ page: String(page) })
+      if (search) params.set('filter', search)
+      const response = await fetch(`/api/docketwise/matters?${params}`)
+      if (!response.ok) throw new Error('Failed to fetch matters')
+      const data = await response.json()
+
+      const options = (data.matters || []).map(
+        (matter: { id: number; title: string }) => ({
+          value: String(matter.id),
+          label: matter.title,
+          docketwiseId: matter.id,
+        }),
+      )
+
+      return {
+        options,
+        hasMore: data.pagination?.nextPage !== null,
+      }
+    } catch (error) {
+      console.error('Failed to fetch matters:', error)
+      return { options: [], hasMore: false }
     }
   }
 
@@ -128,7 +195,8 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
         <DialogHeader>
           <DialogTitle>Upload Documents</DialogTitle>
           <DialogDescription>
-            Select files and assign them to a contact and matter before processing
+            Select files and assign them to a contact and matter before
+            processing
           </DialogDescription>
         </DialogHeader>
 
@@ -167,7 +235,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
           {/* Selected Files */}
           {selectedFiles.length > 0 && (
             <div className="space-y-2">
-              <Label>Selected Files ({selectedFiles.length})</Label>
+              <FieldLabel>Selected Files ({selectedFiles.length})</FieldLabel>
               <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-4">
                 {selectedFiles.map((file, index) => (
                   <div
@@ -197,9 +265,9 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
           )}
 
           {/* Contact and Matter Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Contact (Client) *</Label>
+          <div className="grid grid-cols-2 gap-6">
+            <Field>
+              <FieldLabel>Contact (Client) *</FieldLabel>
               <AdvancedSelect
                 value={clientId}
                 onValueChange={setClientId}
@@ -207,9 +275,9 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                 searchPlaceholder="Search contacts..."
                 fetchOptions={fetchClients}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Matter *</Label>
+            </Field>
+            <Field>
+              <FieldLabel>Matter *</FieldLabel>
               <AdvancedSelect
                 value={matterId}
                 onValueChange={setMatterId}
@@ -217,7 +285,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                 searchPlaceholder="Search matters..."
                 fetchOptions={fetchMatters}
               />
-            </div>
+            </Field>
           </div>
 
           {/* Actions */}
@@ -228,12 +296,12 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
             <Button onClick={handleProcess} disabled={isProcessing}>
               {isProcessing ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Processing...
                 </>
               ) : (
                 <>
-                  <Upload className="mr-2 h-4 w-4" />
+                  <Upload className="h-4 w-4" />
                   Process Files
                 </>
               )}

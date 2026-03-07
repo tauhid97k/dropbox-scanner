@@ -1,5 +1,5 @@
 import { Dropbox } from 'dropbox'
-import { prisma } from './prisma'
+import { getDropboxToken } from './auth-tokens'
 
 export class DropboxService {
   private client: Dropbox
@@ -77,12 +77,22 @@ export class DropboxService {
 
       return response.result.entries
         .filter((entry) => entry['.tag'] === 'file')
-        .map((entry) => ({
-          name: entry.name,
-          path: entry.path_display || entry.path_lower || '',
-          size: (entry as { size: number }).size || 0,
-          modified: entry.client_modified || entry.server_modified || '',
-        }))
+        .map((entry) => {
+          const file = entry as unknown as {
+            name: string
+            path_display?: string
+            path_lower?: string
+            size?: number
+            client_modified?: string
+            server_modified?: string
+          }
+          return {
+            name: file.name,
+            path: file.path_display || file.path_lower || '',
+            size: file.size || 0,
+            modified: file.client_modified || file.server_modified || '',
+          }
+        })
     } catch {
       return []
     }
@@ -129,24 +139,11 @@ export class DropboxService {
   }
 }
 
-// Factory to create service with user's stored tokens
-export async function createDropboxService(
-  userId: string,
-): Promise<DropboxService | null> {
-  const account = await prisma.DropboxAccounts.findUnique({
-    where: { userId },
-  })
-
-  if (!account) {
+// Factory to create service using shared firm-wide Dropbox token from better-auth
+export async function createDropboxService(): Promise<DropboxService | null> {
+  const token = await getDropboxToken()
+  if (!token) {
     return null
   }
-
-  // Check if token is expired and needs refresh
-  if (account.expiresAt && account.expiresAt < new Date()) {
-    // Token refresh logic would go here
-    // For now, we'll just use the existing token
-    // Dropbox tokens are typically long-lived
-  }
-
-  return new DropboxService(account.accessToken)
+  return new DropboxService(token)
 }

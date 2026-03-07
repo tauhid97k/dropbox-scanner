@@ -21,6 +21,10 @@ export const auth = betterAuth({
   },
   account: {
     modelName: 'Accounts',
+    accountLinking: {
+      enabled: true,
+      allowDifferentEmails: true,
+    },
   },
   verification: {
     modelName: 'Verifications',
@@ -88,10 +92,11 @@ export const auth = betterAuth({
           ],
           pkce: true,
           getUserInfo: async (tokens) => {
-            // Fetch Dropbox account info
+            // Fetch Dropbox account info (POST required by Dropbox API)
             const response = await fetch(
               'https://api.dropboxapi.com/2/users/get_current_account',
               {
+                method: 'POST',
                 headers: {
                   Authorization: `Bearer ${tokens.accessToken}`,
                 },

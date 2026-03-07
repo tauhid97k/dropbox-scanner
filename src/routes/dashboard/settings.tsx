@@ -1,9 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { createAuthClient } from 'better-auth/client'
-import { AlertCircle, Check, Link2, Unlink } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -11,10 +7,22 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-
-const authClient = createAuthClient()
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { authClient } from '@/lib/auth-client'
+import { createFileRoute } from '@tanstack/react-router'
+import { CheckCircle2, Loader2, Mail, Plug, X, XCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+import { z } from 'zod'
 
 interface ConnectionStatus {
   docketwise: boolean
@@ -26,6 +34,40 @@ export const Route = createFileRoute('/dashboard/settings')({
 })
 
 function SettingsPage() {
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <p className="text-muted-foreground">
+          Manage your integrations and notifications
+        </p>
+      </div>
+
+      <Tabs defaultValue="integrations" className="w-full">
+        <TabsList>
+          <TabsTrigger value="integrations">
+            <Plug className="h-4 w-4" />
+            Integrations
+          </TabsTrigger>
+          <TabsTrigger value="notifications">
+            <Mail className="h-4 w-4" />
+            Notifications
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="integrations">
+          <IntegrationsTab />
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <NotificationsTab />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
+function IntegrationsTab() {
   const [isLoading, setIsLoading] = useState(false)
   const [connections, setConnections] = useState<ConnectionStatus>({
     docketwise: false,
@@ -34,21 +76,19 @@ function SettingsPage() {
 
   const checkConnections = async () => {
     try {
-      const accounts = await authClient.listAccounts()
-      if (accounts.data) {
-        const hasDocketwise = accounts.data.some(
-          (account: { provider: string }) => account.provider === 'docketwise',
-        )
-        const hasDropbox = accounts.data.some(
-          (account: { provider: string }) => account.provider === 'dropbox',
-        )
+      setIsLoading(true)
+      const response = await fetch('/api/docketwise/status')
+      if (response.ok) {
+        const data = await response.json()
         setConnections({
-          docketwise: hasDocketwise,
-          dropbox: hasDropbox,
+          docketwise: data.docketwise,
+          dropbox: data.dropbox,
         })
       }
     } catch (error) {
       console.error('Failed to check connections:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -56,32 +96,18 @@ function SettingsPage() {
     checkConnections()
   }, [])
 
-  const handleConnectDocketwise = async () => {
+  const handleConnect = async (provider: 'docketwise' | 'dropbox') => {
     setIsLoading(true)
     try {
       await authClient.oauth2.link({
-        providerId: 'docketwise',
-        callbackURL: '/dashboard/settings?connected=docketwise',
-        errorCallbackURL: '/dashboard/settings?error=docketwise',
+        providerId: provider,
+        callbackURL: `/dashboard/settings?connected=${provider}`,
+        errorCallbackURL: `/dashboard/settings?error=${provider}`,
       })
     } catch (error) {
-      toast.error('Failed to connect Docketwise')
-      console.error(error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleConnectDropbox = async () => {
-    setIsLoading(true)
-    try {
-      await authClient.oauth2.link({
-        providerId: 'dropbox',
-        callbackURL: '/dashboard/settings?connected=dropbox',
-        errorCallbackURL: '/dashboard/settings?error=dropbox',
-      })
-    } catch (error) {
-      toast.error('Failed to connect Dropbox')
+      toast.error(
+        `Failed to connect ${provider === 'docketwise' ? 'Docketwise' : 'Dropbox'}`,
+      )
       console.error(error)
     } finally {
       setIsLoading(false)
@@ -112,160 +138,278 @@ function SettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-gray-500">
-          Manage your integrations and connections
-        </p>
-      </div>
-
-      <Separator />
-
-      {/* Integrations */}
+    <div className="space-y-6">
+      {/* Docketwise */}
       <Card>
         <CardHeader>
-          <CardTitle>Integrations</CardTitle>
-          <CardDescription>
-            Connect your accounts to enable file syncing and document management
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Docketwise */}
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                <span className="text-lg font-bold text-blue-600">D</span>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border bg-background">
+                <img
+                  src="/docketwise.png"
+                  alt="Docketwise"
+                  className="h-8 w-8"
+                />
               </div>
               <div>
-                <h3 className="font-medium">Docketwise</h3>
-                <p className="text-sm text-gray-500">
-                  Sync documents to your Docketwise matters
-                </p>
+                <CardTitle>Docketwise</CardTitle>
+                <CardDescription>
+                  Sync documents and manage contacts and matters
+                </CardDescription>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              {connections.docketwise ? (
-                <>
-                  <Badge variant="default" className="bg-green-500">
-                    <Check className="mr-1 h-3 w-3" />
-                    Connected
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDisconnect('docketwise')}
-                    disabled={isLoading}
-                  >
-                    <Unlink className="mr-2 h-4 w-4" />
-                    Disconnect
-                  </Button>
-                </>
+            <div className="flex items-center gap-2 sm:ml-auto">
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : connections.docketwise ? (
+                <div className="flex items-center gap-1.5 text-sm font-medium text-green-600">
+                  <CheckCircle2 className="h-5 w-5 shrink-0" />
+                  Connected
+                </div>
               ) : (
-                <Button
-                  onClick={handleConnectDocketwise}
-                  disabled={isLoading}
-                  size="sm"
-                >
-                  <Link2 className="mr-2 h-4 w-4" />
-                  Connect
-                </Button>
+                <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                  <XCircle className="h-5 w-5 shrink-0" />
+                  Not Connected
+                </div>
               )}
             </div>
           </div>
+        </CardHeader>
+        <CardContent>
+          {connections.docketwise ? (
+            <Button
+              variant="outline"
+              onClick={() => handleDisconnect('docketwise')}
+              disabled={isLoading}
+            >
+              Disconnect
+            </Button>
+          ) : (
+            <Button
+              onClick={() => handleConnect('docketwise')}
+              disabled={isLoading}
+            >
+              <img src="/docketwise.png" alt="" className="h-5 w-5" />
+              Connect Docketwise
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
-          {/* Dropbox */}
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                <span className="text-lg font-bold text-blue-600">Db</span>
+      {/* Dropbox */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border bg-background">
+                <img src="/dropbox.png" alt="Dropbox" className="h-8 w-8" />
               </div>
               <div>
-                <h3 className="font-medium">Dropbox</h3>
-                <p className="text-sm text-gray-500">
+                <CardTitle>Dropbox</CardTitle>
+                <CardDescription>
                   Store files in organized client folders
-                </p>
+                </CardDescription>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              {connections.dropbox ? (
-                <>
-                  <Badge variant="default" className="bg-green-500">
-                    <Check className="mr-1 h-3 w-3" />
-                    Connected
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDisconnect('dropbox')}
-                    disabled={isLoading}
-                  >
-                    <Unlink className="mr-2 h-4 w-4" />
-                    Disconnect
-                  </Button>
-                </>
+            <div className="flex items-center gap-2 sm:ml-auto">
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : connections.dropbox ? (
+                <div className="flex items-center gap-1.5 text-sm font-medium text-green-600">
+                  <CheckCircle2 className="h-5 w-5 shrink-0" />
+                  Connected
+                </div>
               ) : (
-                <Button
-                  onClick={handleConnectDropbox}
-                  disabled={isLoading}
-                  size="sm"
-                >
-                  <Link2 className="mr-2 h-4 w-4" />
-                  Connect
-                </Button>
+                <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                  <XCircle className="h-5 w-5 shrink-0" />
+                  Not Connected
+                </div>
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Connection Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Connection Status</CardTitle>
-          <CardDescription>Overview of your connected services</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              {connections.docketwise ? (
-                <Check className="h-5 w-5 text-green-500" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-yellow-500" />
-              )}
-              <span>Docketwise</span>
-              <Badge variant={connections.docketwise ? 'default' : 'secondary'}>
-                {connections.docketwise ? 'Active' : 'Not connected'}
-              </Badge>
-            </div>
-            <div className="flex items-center space-x-2">
-              {connections.dropbox ? (
-                <Check className="h-5 w-5 text-green-500" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-yellow-500" />
-              )}
-              <span>Dropbox</span>
-              <Badge variant={connections.dropbox ? 'default' : 'secondary'}>
-                {connections.dropbox ? 'Active' : 'Not connected'}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Help Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Help</CardTitle>
-          <CardDescription>Need assistance?</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600">
-            Having trouble connecting? Make sure you have the correct OAuth
-            credentials configured in your environment variables.
-          </p>
+          {connections.dropbox ? (
+            <Button
+              variant="outline"
+              onClick={() => handleDisconnect('dropbox')}
+              disabled={isLoading}
+            >
+              Disconnect
+            </Button>
+          ) : (
+            <Button
+              onClick={() => handleConnect('dropbox')}
+              disabled={isLoading}
+            >
+              <img src="/dropbox.png" alt="" className="h-5 w-5" />
+              Connect Dropbox
+            </Button>
+          )}
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+const emailSchema = z.string().email('Please enter a valid email address')
+
+function NotificationsTab() {
+  const [recipients, setRecipients] = useState<string[]>([])
+  const [newEmail, setNewEmail] = useState('')
+  const [emailError, setEmailError] = useState('')
+  const [notifyOnUpload, setNotifyOnUpload] = useState(true)
+  const [notifyOnError, setNotifyOnError] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/email-settings')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.settings) {
+          setRecipients(data.settings.recipients || [])
+          setNotifyOnUpload(data.settings.notifyOnUpload ?? true)
+          setNotifyOnError(data.settings.notifyOnError ?? true)
+        }
+      })
+      .catch(console.error)
+  }, [])
+
+  const addRecipient = () => {
+    const email = newEmail.trim()
+    setEmailError('')
+
+    const result = emailSchema.safeParse(email)
+    if (!result.success) {
+      setEmailError(result.error.issues[0]?.message || 'Invalid email')
+      return
+    }
+
+    if (recipients.includes(email)) {
+      setEmailError('This email is already added')
+      return
+    }
+
+    setRecipients([...recipients, email])
+    setNewEmail('')
+  }
+
+  const removeRecipient = (email: string) => {
+    setRecipients(recipients.filter((r) => r !== email))
+  }
+
+  const saveSettings = async () => {
+    setIsSaving(true)
+    try {
+      const response = await fetch('/api/email-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipients, notifyOnUpload, notifyOnError }),
+      })
+      if (!response.ok) throw new Error('Failed to save')
+      toast.success('Email settings saved')
+    } catch {
+      toast.error('Failed to save email settings')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-background">
+            <Mail className="h-5 w-5" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Email Notifications</CardTitle>
+            <CardDescription>
+              Configure who receives email notifications about uploads
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <FieldGroup>
+          {/* Recipients */}
+          <Field data-invalid={!!emailError}>
+            <FieldLabel>Recipients</FieldLabel>
+            <div className="flex items-start gap-2">
+              <div className="flex-1">
+                <Input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => {
+                    setNewEmail(e.target.value)
+                    if (emailError) setEmailError('')
+                  }}
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' && (e.preventDefault(), addRecipient())
+                  }
+                  placeholder="Add email address..."
+                  aria-invalid={!!emailError}
+                />
+              </div>
+              <Button className="h-10" onClick={addRecipient}>
+                Add
+              </Button>
+            </div>
+            <FieldError errors={emailError ? [{ message: emailError }] : []} />
+            {recipients.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {recipients.map((email) => (
+                  <Badge key={email} variant="secondary" className="pr-1">
+                    {email}
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      onClick={() => removeRecipient(email)}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </Field>
+
+          {/* Toggle settings */}
+          <Field>
+            <FieldLabel>Preferences</FieldLabel>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="notify-upload"
+                  checked={notifyOnUpload}
+                  onCheckedChange={(checked) =>
+                    setNotifyOnUpload(checked === true)
+                  }
+                />
+                <Label htmlFor="notify-upload" className="cursor-pointer">
+                  Notify on successful upload
+                </Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="notify-error"
+                  checked={notifyOnError}
+                  onCheckedChange={(checked) =>
+                    setNotifyOnError(checked === true)
+                  }
+                />
+                <Label htmlFor="notify-error" className="cursor-pointer">
+                  Notify on upload failure
+                </Label>
+              </div>
+            </div>
+          </Field>
+
+          <Button onClick={saveSettings} isLoading={isSaving}>
+            Save Email Settings
+          </Button>
+        </FieldGroup>
+      </CardContent>
+    </Card>
   )
 }

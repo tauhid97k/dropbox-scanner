@@ -1,78 +1,21 @@
-import { Worker } from 'bullmq'
-import type { DocketwiseJobData } from '@/lib/queues'
-import type { Job } from 'bullmq'
+import { createDocketwiseService } from '@/lib/docketwise-service'
 import { prisma } from '@/lib/prisma'
+import type { DocketwiseJobData } from '@/lib/queues'
+import { emailQueue } from '@/lib/queues'
 import { publishJobUpdate } from '@/lib/redis'
+import type { Job } from 'bullmq'
+import { Worker } from 'bullmq'
 
 const connection = {
   url: process.env.REDIS_URL || 'redis://localhost:6379',
-}
-
-// Docketwise API client
-class DocketwiseClient {
-  private accessToken: string
-
-  constructor(accessToken: string) {
-    this.accessToken = accessToken
-  }
-
-  async uploadDocument(
-    matterId: string,
-    fileName: string,
-    fileData: Buffer,
-    description?: string,
-  ): Promise<{ id: string; url: string }> {
-    // Convert buffer to base64 for API
-    const base64Data = fileData.toString('base64')
-
-    const response = await fetch('https://api.docketwise.com/v1/documents', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        matter_id: matterId,
-        filename: fileName,
-        file_data: base64Data,
-        description:
-          description ||
-          `Uploaded via Dropbox Scanner on ${new Date().toISOString()}`,
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`Docketwise API error: ${error}`)
-    }
-
-    const data = await response.json()
-    return { id: data.id, url: data.url }
-  }
-
-  async getMatters(): Promise<
-    Array<{ id: string; title: string; client_name: string }>
-  > {
-    const response = await fetch('https://api.docketwise.com/v1/matters', {
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch matters from Docketwise')
-    }
-
-    const data = await response.json()
-    return data.matters || []
-  }
 }
 
 // Docketwise sync worker
 export const docketwiseWorker = new Worker<DocketwiseJobData>(
   'docketwise-sync',
   async (job: Job<DocketwiseJobData>) => {
-    const { scanJobId, userId, filePath, matterId, fileName } = job.data
+    const { scanJobId, userId, clientName, matterId, fileName, fileData } =
+      job.data
 
     try {
       // Update job progress
@@ -82,61 +25,105 @@ export const docketwiseWorker = new Worker<DocketwiseJobData>(
       })
       await publishJobUpdate(scanJobId, { progress: 70, stage: 'docketwise' })
 
-      // Get Docketwise access token from user's accounts
-      const account = await prisma.accounts.findFirst({
-        where: {
-          userId,
-          providerId: 'docketwise',
-        },
+      // Create Docketwise service using shared firm-wide token
+      const docketwise = await createDocketwiseService()
+      if (!docketwise) {
+        throw new Error('Docketwise not connected. Please connect in Settings.')
+      }
+
+      // Use the base64 data passed from file-worker (avoids re-downloading from Dropbox)
+      if (!fileData) {
+        throw new Error('File data not available for Docketwise upload')
+      }
+
+      // Upload document to Docketwise API
+      // Uses the correct API format: { document: { title, filename, base64_data, client_id, matter_id } }
+      const doc = await docketwise.uploadDocument({
+        title: fileName,
+        filename: fileName,
+        base64Data: fileData,
+        clientId: parseInt(clientName, 10), // clientName is actually the Docketwise contact ID
+        matterId: matterId ? parseInt(matterId, 10) : undefined,
+        description: `Uploaded via Dropbox Scanner on ${new Date().toISOString()}`,
       })
 
-      if (!account?.accessToken) {
-        throw new Error('Docketwise account not connected')
-      }
-
-      const docketwise = new DocketwiseClient(account.accessToken)
-
-      // Download file from Dropbox for upload to Docketwise
-      const dropboxService = await import('@/lib/dropbox-service').then((m) =>
-        m.createDropboxService(userId),
-      )
-
-      if (!dropboxService) {
-        throw new Error('Dropbox service not available')
-      }
-
-      const fileData = await (await dropboxService).downloadFile(filePath)
-
-      // Upload to Docketwise
-      const doc = await docketwise.uploadDocument(
-        matterId || '',
-        fileName,
-        fileData,
-        `Synced from Dropbox: ${filePath}`,
-      )
+      const docId = String(doc.id)
 
       // Update job with Docketwise document ID
       await prisma.scanJobs.update({
         where: { id: scanJobId },
-        data: { docketwiseDocId: doc.id },
+        data: {
+          docketwiseDocId: docId,
+          progress: 90,
+          stage: 'email',
+        },
       })
 
       // Update file metadata
       await prisma.fileMetadata.update({
         where: { scanJobId },
-        data: { docketwiseDocId: doc.id },
+        data: { docketwiseDocId: docId },
       })
 
       await publishJobUpdate(scanJobId, {
-        docketwiseDocId: doc.id,
-        progress: 85,
+        docketwiseDocId: docId,
+        progress: 90,
+        stage: 'email',
       })
 
-      return { success: true, docketwiseDocId: doc.id }
+      // Enqueue success email notification
+      const emailSettings = await prisma.emailSettings.findFirst({
+        where: { userId },
+      })
+      if (
+        emailSettings?.notifyOnUpload &&
+        emailSettings.recipients.length > 0
+      ) {
+        await emailQueue.add('send-notification', {
+          to: emailSettings.recipients,
+          subject: `File Uploaded: ${fileName}`,
+          template: 'upload-success' as const,
+          data: {
+            clientName,
+            fileName,
+            uploadedBy: userId,
+            dropboxPath: job.data.filePath,
+            docketwiseDocId: docId,
+          },
+        })
+      }
+
+      // Mark scan job as completed
+      await prisma.scanJobs.update({
+        where: { id: scanJobId },
+        data: { status: 'completed', progress: 100, stage: 'completed' },
+      })
+      await publishJobUpdate(scanJobId, {
+        progress: 100,
+        stage: 'completed',
+        status: 'completed',
+      })
+
+      return { success: true, docketwiseDocId: docId }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Docketwise sync failed'
       console.error('Docketwise sync error:', error)
+
+      // Update scan job with error
+      await prisma.scanJobs.update({
+        where: { id: scanJobId },
+        data: {
+          status: 'failed',
+          errorMessage,
+          stage: 'docketwise',
+        },
+      })
+      await publishJobUpdate(scanJobId, {
+        status: 'failed',
+        error: errorMessage,
+      })
+
       throw new Error(errorMessage)
     }
   },
@@ -148,4 +135,8 @@ export const docketwiseWorker = new Worker<DocketwiseJobData>(
 
 docketwiseWorker.on('failed', (job, err) => {
   console.error(`Docketwise job ${job?.id} failed:`, err)
+})
+
+docketwiseWorker.on('completed', (job) => {
+  console.log(`Docketwise job ${job.id} completed`)
 })

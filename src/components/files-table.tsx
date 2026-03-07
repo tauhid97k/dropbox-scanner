@@ -1,16 +1,11 @@
-import { format } from 'date-fns'
-import { Download, Eye, FileIcon, FileText, Image, Loader2 } from 'lucide-react'
-import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '@/components/ui/input-group'
 import {
   Table,
   TableBody,
@@ -19,6 +14,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { format } from 'date-fns'
+import {
+  Download,
+  Eye,
+  FileIcon,
+  FileText,
+  Image,
+  Loader2,
+  Search,
+} from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 
 interface FileItem {
   id: string
@@ -45,13 +51,37 @@ export function FilesTable({
   onDownloadFile,
 }: FilesTableProps) {
   const [search, setSearch] = useState('')
-  const [selectedClient, setSelectedClient] = useState(clientId || '')
-  const [selectedMatter, setSelectedMatter] = useState(matterId || '')
   const [dateFilter, setDateFilter] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [files, setFiles] = useState<Array<FileItem>>([])
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages] = useState(10)
+  const [totalPages, setTotalPages] = useState(1)
+
+  const fetchFiles = useCallback(
+    async (page: number) => {
+      setIsLoading(true)
+      try {
+        const params = new URLSearchParams({ page: String(page) })
+        if (clientId) params.set('clientId', clientId)
+        if (matterId) params.set('matterId', matterId)
+        const response = await fetch(`/api/files?${params}`)
+        if (!response.ok) throw new Error('Failed to fetch files')
+        const data = await response.json()
+        setFiles(data.files || [])
+        setTotalPages(data.totalPages || 1)
+      } catch (error) {
+        console.error('Failed to fetch files:', error)
+        setFiles([])
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [clientId, matterId],
+  )
+
+  useEffect(() => {
+    fetchFiles(currentPage)
+  }, [currentPage, fetchFiles])
 
   const getFileIcon = (fileType: string) => {
     if (fileType.includes('pdf')) {
@@ -79,34 +109,18 @@ export function FilesTable({
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Input
-          placeholder="Search files..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {!clientId && (
-          <Select value={selectedClient} onValueChange={setSelectedClient}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Contacts" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Contacts</SelectItem>
-              {/* TODO: Load from API */}
-            </SelectContent>
-          </Select>
-        )}
-        {!matterId && (
-          <Select value={selectedMatter} onValueChange={setSelectedMatter}>
-            <SelectTrigger>
-              <SelectValue placeholder="All Matters" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Matters</SelectItem>
-              {/* TODO: Load from API */}
-            </SelectContent>
-          </Select>
-        )}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <InputGroup>
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
+            placeholder="Search files..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </InputGroup>
         <Input
           type="date"
           value={dateFilter}
@@ -140,7 +154,10 @@ export function FilesTable({
               </TableRow>
             ) : files.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={6}
+                  className="py-8 text-center text-muted-foreground"
+                >
                   No files found
                 </TableCell>
               </TableRow>

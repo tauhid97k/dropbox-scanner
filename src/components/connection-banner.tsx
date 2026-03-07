@@ -1,62 +1,73 @@
-import { AlertCircle, CheckCircle, XCircle } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Link } from '@tanstack/react-router'
+import { CheckCircle2, XCircle } from 'lucide-react'
 
 interface ConnectionBannerProps {
   dropboxConnected: boolean
   docketwiseConnected: boolean
-  onConnectDropbox?: () => void
-  onConnectDocketwise?: () => void
 }
 
 export function ConnectionBanner({
   dropboxConnected,
   docketwiseConnected,
-  onConnectDropbox,
-  onConnectDocketwise,
 }: ConnectionBannerProps) {
   if (dropboxConnected && docketwiseConnected) {
     return null
   }
 
   return (
-    <Alert variant="destructive" className="mb-6">
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Connection Required</AlertTitle>
-      <AlertDescription>
-        <div className="mt-2 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {dropboxConnected ? (
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              ) : (
-                <XCircle className="h-4 w-4 text-red-500" />
-              )}
-              <span>Dropbox {dropboxConnected ? 'Connected' : 'Not Connected'}</span>
-            </div>
-            {!dropboxConnected && (
-              <Button size="sm" variant="outline" onClick={onConnectDropbox}>
-                Connect Dropbox
-              </Button>
-            )}
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {docketwiseConnected ? (
-                <CheckCircle className="h-4 w-4 text-green-500" />
-              ) : (
-                <XCircle className="h-4 w-4 text-red-500" />
-              )}
-              <span>Docketwise {docketwiseConnected ? 'Connected' : 'Not Connected'}</span>
-            </div>
-            {!docketwiseConnected && (
-              <Button size="sm" variant="outline" onClick={onConnectDocketwise}>
-                Connect Docketwise
-              </Button>
-            )}
-          </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Docketwise Card */}
+      <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-background">
+          <img src="/docketwise.png" alt="Docketwise" className="h-6 w-6" />
         </div>
-      </AlertDescription>
-    </Alert>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Docketwise</p>
+          {docketwiseConnected ? (
+            <div className="flex items-center gap-1 text-xs font-medium text-green-600">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Connected
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <XCircle className="h-3.5 w-3.5" />
+              Not connected
+            </div>
+          )}
+        </div>
+        {!docketwiseConnected && (
+          <Button asChild size="sm">
+            <Link to="/dashboard/settings">Connect</Link>
+          </Button>
+        )}
+      </div>
+
+      {/* Dropbox Card */}
+      <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-background">
+          <img src="/dropbox.png" alt="Dropbox" className="h-6 w-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Dropbox</p>
+          {dropboxConnected ? (
+            <div className="flex items-center gap-1 text-xs font-medium text-green-600">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Connected
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <XCircle className="h-3.5 w-3.5" />
+              Not connected
+            </div>
+          )}
+        </div>
+        {!dropboxConnected && (
+          <Button asChild size="sm">
+            <Link to="/dashboard/settings">Connect</Link>
+          </Button>
+        )}
+      </div>
+    </div>
   )
 }

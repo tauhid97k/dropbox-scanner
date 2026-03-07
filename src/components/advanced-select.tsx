@@ -1,6 +1,3 @@
-import { Check, ChevronsUpDown, Loader2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import {
   Command,
   CommandEmpty,
@@ -15,10 +12,13 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { Check, ChevronDown } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-interface AdvancedSelectOption {
+export interface AdvancedSelectOption {
   value: string
   label: string
+  description?: string
   docketwiseId?: number
 }
 
@@ -28,11 +28,15 @@ interface AdvancedSelectProps {
   placeholder?: string
   searchPlaceholder?: string
   emptyText?: string
-  fetchOptions: (search: string, page: number) => Promise<{
+  fetchOptions: (
+    search: string,
+    page: number,
+  ) => Promise<{
     options: Array<AdvancedSelectOption>
     hasMore: boolean
   }>
   disabled?: boolean
+  className?: string
 }
 
 export function AdvancedSelect({
@@ -43,6 +47,7 @@ export function AdvancedSelect({
   emptyText = 'No results found.',
   fetchOptions,
   disabled = false,
+  className,
 }: AdvancedSelectProps) {
   const [open, setOpen] = useState(false)
   const [options, setOptions] = useState<Array<AdvancedSelectOption>>([])
@@ -51,8 +56,8 @@ export function AdvancedSelect({
   const [hasMore, setHasMore] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const observerTarget = useRef<HTMLDivElement>(null)
-  const debounceTimer = useRef<NodeJS.Timeout>()
+  const observerTarget = useRef<HTMLDivElement | null>(null)
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null)
 
   const loadOptions = useCallback(
     async (searchTerm: string, pageNum: number, append = false) => {
@@ -64,7 +69,9 @@ export function AdvancedSelect({
 
       try {
         const result = await fetchOptions(searchTerm, pageNum)
-        setOptions((prev) => (append ? [...prev, ...result.options] : result.options))
+        setOptions((prev) =>
+          append ? [...prev, ...result.options] : result.options,
+        )
         setHasMore(result.hasMore)
       } catch (error) {
         console.error('Failed to load options:', error)
@@ -98,7 +105,12 @@ export function AdvancedSelect({
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasMore && !isLoading && !isLoadingMore) {
+        if (
+          entries[0]?.isIntersecting &&
+          hasMore &&
+          !isLoading &&
+          !isLoadingMore
+        ) {
           const nextPage = page + 1
           setPage(nextPage)
           loadOptions(search, nextPage, true)
@@ -122,71 +134,92 @@ export function AdvancedSelect({
   const selectedOption = options.find((option) => option.value === value)
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
+        <button
+          type="button"
           disabled={disabled}
+          className={cn(
+            'flex h-10 w-full items-center justify-between rounded-md border-2 border-input bg-background px-3 py-2 text-sm transition-colors hover:border-input focus-visible:border-primary focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50',
+            className,
+          )}
         >
-          {selectedOption ? selectedOption.label : placeholder}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+          <span
+            className={cn(
+              'flex-1 truncate text-left',
+              !selectedOption && 'text-muted-foreground',
+            )}
+          >
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+          <ChevronDown className="size-5 shrink-0 opacity-50" />
+        </button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent
+        className="w-(--radix-popover-trigger-width) p-0"
+        align="start"
+        sideOffset={4}
+      >
         <Command shouldFilter={false}>
           <CommandInput
             placeholder={searchPlaceholder}
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList>
-            {isLoading && (
+          <CommandList className="max-h-75 overflow-y-auto">
+            {isLoading ? (
               <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
-            )}
-            {!isLoading && options.length === 0 && (
-              <CommandEmpty>{emptyText}</CommandEmpty>
-            )}
-            {!isLoading && options.length > 0 && (
-              <CommandGroup>
-                {options.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={(currentValue) => {
-                      onValueChange(currentValue === value ? '' : currentValue)
-                      setOpen(false)
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        'mr-2 h-4 w-4',
-                        value === option.value ? 'opacity-100' : 'opacity-0',
-                      )}
-                    />
-                    {option.label}
-                  </CommandItem>
-                ))}
-                {hasMore && (
-                  <div
-                    ref={observerTarget}
-                    className="flex items-center justify-center py-2"
-                  >
-                    {isLoadingMore && (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">
-                          Loading...
-                        </span>
-                      </>
-                    )}
-                  </div>
+            ) : (
+              <>
+                {options.length === 0 && (
+                  <CommandEmpty>{emptyText}</CommandEmpty>
                 )}
-              </CommandGroup>
+                {options.length > 0 && (
+                  <CommandGroup>
+                    {options.map((option) => {
+                      const isSelected = value === option.value
+                      return (
+                        <CommandItem
+                          key={option.value}
+                          value={option.value}
+                          onSelect={(currentValue) => {
+                            onValueChange(
+                              currentValue === value ? '' : currentValue,
+                            )
+                            setOpen(false)
+                          }}
+                          className={cn(
+                            'flex cursor-pointer items-center justify-between',
+                            isSelected && 'bg-accent',
+                          )}
+                        >
+                          <div className="flex flex-col">
+                            <span>{option.label}</span>
+                            {option.description && (
+                              <span className="text-xs text-muted-foreground">
+                                {option.description}
+                              </span>
+                            )}
+                          </div>
+                          {isSelected && <Check className="size-4" />}
+                        </CommandItem>
+                      )
+                    })}
+                    {hasMore && (
+                      <div
+                        ref={observerTarget}
+                        className="flex items-center justify-center py-2"
+                      >
+                        {isLoadingMore && (
+                          <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        )}
+                      </div>
+                    )}
+                  </CommandGroup>
+                )}
+              </>
             )}
           </CommandList>
         </Command>

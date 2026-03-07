@@ -1,10 +1,10 @@
-import { Worker } from 'bullmq'
-import type { FileJobData } from '@/lib/queues'
-import type { Job } from 'bullmq'
-import { aiService } from '@/lib/ai-service'
 import { createDropboxService } from '@/lib/dropbox-service'
 import { prisma } from '@/lib/prisma'
+import type { FileJobData } from '@/lib/queues'
+import { docketwiseQueue, emailQueue } from '@/lib/queues'
 import { publishJobUpdate } from '@/lib/redis'
+import type { Job } from 'bullmq'
+import { Worker } from 'bullmq'
 
 const connection = {
   url: process.env.REDIS_URL || 'redis://localhost:6379',
@@ -18,6 +18,8 @@ export const fileWorker = new Worker<FileJobData>(
       scanJobId,
       fileData,
       originalName,
+      mimeType,
+      userId,
       selectedClient,
       selectedMatter,
     } = job.data
@@ -33,28 +35,8 @@ export const fileWorker = new Worker<FileJobData>(
       // Decode file data
       const buffer = Buffer.from(fileData, 'base64')
 
-      // If no client selected, use AI to suggest
-      let clientName = selectedClient
-      let matterType = selectedMatter ?? undefined
-
-      if (!clientName) {
-        // Analyze document with Gemini
-        const analysis = await aiService.analyzeDocument(buffer, originalName)
-        clientName = analysis.clientName || 'unknown_client'
-        matterType = analysis.matterType ?? undefined
-
-        // Update job with AI suggestions
-        await prisma.scanJobs.update({
-          where: { id: scanJobId },
-          data: {
-            suggestedClient: analysis.clientName,
-            suggestedMatter: analysis.matterType,
-            aiConfidence: analysis.confidence,
-            selectedClient: clientName,
-            selectedMatter: matterType,
-          },
-        })
-      }
+      let clientName = selectedClient || 'unknown_client'
+      const matterType = selectedMatter ?? undefined
 
       await prisma.scanJobs.update({
         where: { id: scanJobId },
@@ -62,10 +44,12 @@ export const fileWorker = new Worker<FileJobData>(
       })
       await publishJobUpdate(scanJobId, { progress: 30, stage: 'dropbox' })
 
-      // Upload to Dropbox
-      const dropbox = await createDropboxService(job.data.userId)
+      // Upload to Dropbox (shared firm-wide token)
+      const dropbox = await createDropboxService()
       if (!dropbox) {
-        throw new Error('Dropbox not connected')
+        throw new Error(
+          'Dropbox not connected. Please connect Dropbox in Settings.',
+        )
       }
 
       const { path: dropboxPath } = await dropbox.uploadFile(
@@ -78,7 +62,11 @@ export const fileWorker = new Worker<FileJobData>(
         where: { id: scanJobId },
         data: { progress: 60, dropboxPath },
       })
-      await publishJobUpdate(scanJobId, { progress: 60, dropboxPath })
+      await publishJobUpdate(scanJobId, {
+        progress: 60,
+        stage: 'docketwise',
+        dropboxPath,
+      })
 
       // Create file metadata record
       await prisma.fileMetadata.create({
@@ -87,23 +75,23 @@ export const fileWorker = new Worker<FileJobData>(
           dropboxPath,
           clientName,
           fileName: originalName,
-          fileType: job.data.mimeType,
-          uploadedBy: job.data.userId,
+          fileType: mimeType,
+          uploadedBy: userId,
         },
       })
 
-      // Mark job as completed
-      await prisma.scanJobs.update({
-        where: { id: scanJobId },
-        data: { status: 'completed', progress: 100, stage: 'completed' },
-      })
-      await publishJobUpdate(scanJobId, {
-        progress: 100,
-        stage: 'completed',
-        status: 'completed',
+      // Enqueue Docketwise upload job
+      await docketwiseQueue.add('upload-document', {
+        scanJobId,
+        userId,
+        filePath: dropboxPath,
+        clientName,
+        matterId: selectedMatter,
+        fileName: originalName,
+        fileData, // pass base64 data so docketwise worker doesn't need to re-download
       })
 
-      // Return result for potential Docketwise sync
+      // Return result
       return {
         success: true,
         dropboxPath,
@@ -126,6 +114,19 @@ export const fileWorker = new Worker<FileJobData>(
         status: 'failed',
         error: errorMessage,
       })
+
+      // Enqueue error notification email
+      const emailSettings = await prisma.emailSettings.findFirst({
+        where: { userId },
+      })
+      if (emailSettings?.notifyOnError && emailSettings.recipients.length > 0) {
+        await emailQueue.add('send-notification', {
+          to: emailSettings.recipients,
+          subject: `File Upload Failed: ${originalName}`,
+          template: 'upload-error' as const,
+          data: { fileName: originalName, error: errorMessage },
+        })
+      }
 
       throw error
     }

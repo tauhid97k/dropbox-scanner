@@ -1,10 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
-import { Controller, useForm } from 'react-hook-form'
-import { LuEye, LuEyeOff, LuLock, LuMail } from 'react-icons/lu'
-import { toast } from 'sonner'
-import type {SignInSchemaType} from '@/schema/authSchema';
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -28,13 +21,21 @@ import {
   InputGroupInput,
 } from '@/components/ui/input-group'
 import { signIn } from '@/lib/auth-client'
-import {  signInSchema } from '@/schema/authSchema'
+import type { SignInSchemaType } from '@/schema/authSchema'
+import { signInSchema } from '@/schema/authSchema'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
+import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { LuEye, LuEyeOff, LuLock, LuMail } from 'react-icons/lu'
+import { toast } from 'sonner'
 
 export const Route = createFileRoute('/(main)/auth/sign-in')({
   component: SignInPage,
 })
 
 function SignInPage() {
+  const router = useRouter()
   const [pendingAuth, setPendingAuth] = useState<boolean>(false)
   const [formError, setFormError] = useState<string>('')
   const [showPassword, setShowPassword] = useState<boolean>(false)
@@ -61,7 +62,7 @@ function SignInPage() {
         },
         onSuccess: () => {
           toast.success('Login successful')
-          Route.redirect({ to: '/dashboard' })
+          router.navigate({ to: '/dashboard' })
         },
         onError: (ctx) => {
           setFormError(ctx.error.message)

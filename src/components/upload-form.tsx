@@ -1,15 +1,15 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Folder, Loader2, Sparkles, User } from 'lucide-react'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
-import type { UploadFormData } from '@/schema/upload'
 import { FileDropzone } from '@/components/file-dropzone'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import type { UploadFormData } from '@/schema/upload'
 import { uploadSchema } from '@/schema/upload'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Folder, Loader2, Sparkles, User } from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 
 interface UploadFormProps {
   onUpload: (data: UploadFormData & { file: File }) => Promise<void>
@@ -40,7 +40,7 @@ export function UploadForm({ onUpload, isUploading }: UploadFormProps) {
 
   return (
     <Card className="border-2">
-      <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
+      <CardHeader className="bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
         <CardTitle className="flex items-center gap-2 text-xl">
           <Sparkles className="h-5 w-5 text-blue-500" />
           Upload Document

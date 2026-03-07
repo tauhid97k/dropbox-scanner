@@ -1,12 +1,12 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Loader2, Sparkles } from 'lucide-react'
-import { useState } from 'react'
-import { toast } from 'sonner'
 import { FileDropzone } from '@/components/file-dropzone'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { createFileRoute } from '@tanstack/react-router'
+import { Loader2, Sparkles } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 interface UploadJob {
   id: string
@@ -122,7 +122,7 @@ function UploadPage() {
 
       {/* Upload Card */}
       <Card className="border-2">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+        <CardHeader className="bg-linear-to-r from-blue-50 to-indigo-50">
           <CardTitle className="flex items-center gap-2 text-xl">
             <Sparkles className="h-5 w-5 text-blue-500" />
             Upload Document

@@ -1,9 +1,8 @@
-import { createHash } from 'node:crypto'
-import { createFileRoute } from '@tanstack/react-router'
-import { aiService } from '@/lib/ai-service'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { fileQueue } from '@/lib/queues'
+import { createFileRoute } from '@tanstack/react-router'
+import { createHash } from 'node:crypto'
 
 export const Route = createFileRoute('/api/upload')({
   server: {
@@ -43,7 +42,7 @@ export const Route = createFileRoute('/api/upload')({
           const contentHash = createHash('sha256').update(buffer).digest('hex')
 
           // Check if file already processed
-          const existingJob = await prisma.ScanJobs.findFirst({
+          const existingJob = await prisma.scanJobs.findFirst({
             where: { contentHash },
           })
 
@@ -62,7 +61,7 @@ export const Route = createFileRoute('/api/upload')({
           }
 
           // Create scan job record
-          const scanJob = await prisma.ScanJobs.create({
+          const scanJob = await prisma.scanJobs.create({
             data: {
               userId: session.user.id,
               originalName: file.name,
@@ -92,33 +91,11 @@ export const Route = createFileRoute('/api/upload')({
             selectedMatter: selectedMatter || undefined,
           })
 
-          // If no client selected, get AI suggestion
-          let aiSuggestion = null
-          if (!selectedClient) {
-            const analysis = await aiService.analyzeDocument(buffer, file.name)
-            aiSuggestion = {
-              clientName: analysis.clientName,
-              matterType: analysis.matterType,
-              confidence: analysis.confidence,
-            }
-
-            // Update job with AI suggestion
-            await prisma.ScanJobs.update({
-              where: { id: scanJob.id },
-              data: {
-                suggestedClient: analysis.clientName,
-                suggestedMatter: analysis.matterType,
-                aiConfidence: analysis.confidence,
-              },
-            })
-          }
-
           return new Response(
             JSON.stringify({
               success: true,
               jobId: scanJob.id,
               status: 'pending',
-              aiSuggestion,
             }),
             {
               status: 200,

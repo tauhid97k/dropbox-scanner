@@ -22,9 +22,17 @@ import { Route as DashboardFilesRouteImport } from './routes/dashboard/files'
 import { Route as DashboardContactsRouteImport } from './routes/dashboard/contacts'
 import { Route as DashboardClientsRouteImport } from './routes/dashboard/clients'
 import { Route as ApiUploadRouteImport } from './routes/api.upload'
+import { Route as ApiQueueRouteImport } from './routes/api.queue'
 import { Route as ApiProgressRouteImport } from './routes/api.progress'
+import { Route as ApiNotificationsRouteImport } from './routes/api.notifications'
+import { Route as ApiFilesRouteImport } from './routes/api.files'
+import { Route as ApiEmailSettingsRouteImport } from './routes/api.email-settings'
 import { Route as mainAuthRouteRouteImport } from './routes/(main)/auth/route'
 import { Route as DashboardContactsContactIdRouteImport } from './routes/dashboard/contacts.$contactId'
+import { Route as ApiDropboxFilesRouteImport } from './routes/api.dropbox.files'
+import { Route as ApiDocketwiseStatusRouteImport } from './routes/api.docketwise.status'
+import { Route as ApiDocketwiseMattersRouteImport } from './routes/api.docketwise.matters'
+import { Route as ApiDocketwiseContactsRouteImport } from './routes/api.docketwise.contacts'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as mainAuthSignUpRouteImport } from './routes/(main)/auth/sign-up'
 import { Route as mainAuthSignInRouteImport } from './routes/(main)/auth/sign-in'
@@ -93,9 +101,29 @@ const ApiUploadRoute = ApiUploadRouteImport.update({
   path: '/api/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiQueueRoute = ApiQueueRouteImport.update({
+  id: '/api/queue',
+  path: '/api/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProgressRoute = ApiProgressRouteImport.update({
   id: '/api/progress',
   path: '/api/progress',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiNotificationsRoute = ApiNotificationsRouteImport.update({
+  id: '/api/notifications',
+  path: '/api/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFilesRoute = ApiFilesRouteImport.update({
+  id: '/api/files',
+  path: '/api/files',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEmailSettingsRoute = ApiEmailSettingsRouteImport.update({
+  id: '/api/email-settings',
+  path: '/api/email-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const mainAuthRouteRoute = mainAuthRouteRouteImport.update({
@@ -109,6 +137,26 @@ const DashboardContactsContactIdRoute =
     path: '/$contactId',
     getParentRoute: () => DashboardContactsRoute,
   } as any)
+const ApiDropboxFilesRoute = ApiDropboxFilesRouteImport.update({
+  id: '/api/dropbox/files',
+  path: '/api/dropbox/files',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocketwiseStatusRoute = ApiDocketwiseStatusRouteImport.update({
+  id: '/api/docketwise/status',
+  path: '/api/docketwise/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocketwiseMattersRoute = ApiDocketwiseMattersRouteImport.update({
+  id: '/api/docketwise/matters',
+  path: '/api/docketwise/matters',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocketwiseContactsRoute = ApiDocketwiseContactsRouteImport.update({
+  id: '/api/docketwise/contacts',
+  path: '/api/docketwise/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -128,7 +176,11 @@ const mainAuthSignInRoute = mainAuthSignInRouteImport.update({
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/email-settings': typeof ApiEmailSettingsRoute
+  '/api/files': typeof ApiFilesRoute
+  '/api/notifications': typeof ApiNotificationsRoute
   '/api/progress': typeof ApiProgressRoute
+  '/api/queue': typeof ApiQueueRoute
   '/api/upload': typeof ApiUploadRoute
   '/dashboard/clients': typeof DashboardClientsRoute
   '/dashboard/contacts': typeof DashboardContactsRouteWithChildren
@@ -143,11 +195,19 @@ export interface FileRoutesByFullPath {
   '/auth/sign-in': typeof mainAuthSignInRoute
   '/auth/sign-up': typeof mainAuthSignUpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/docketwise/contacts': typeof ApiDocketwiseContactsRoute
+  '/api/docketwise/matters': typeof ApiDocketwiseMattersRoute
+  '/api/docketwise/status': typeof ApiDocketwiseStatusRoute
+  '/api/dropbox/files': typeof ApiDropboxFilesRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/email-settings': typeof ApiEmailSettingsRoute
+  '/api/files': typeof ApiFilesRoute
+  '/api/notifications': typeof ApiNotificationsRoute
   '/api/progress': typeof ApiProgressRoute
+  '/api/queue': typeof ApiQueueRoute
   '/api/upload': typeof ApiUploadRoute
   '/dashboard/clients': typeof DashboardClientsRoute
   '/dashboard/contacts': typeof DashboardContactsRouteWithChildren
@@ -162,6 +222,10 @@ export interface FileRoutesByTo {
   '/auth/sign-in': typeof mainAuthSignInRoute
   '/auth/sign-up': typeof mainAuthSignUpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/docketwise/contacts': typeof ApiDocketwiseContactsRoute
+  '/api/docketwise/matters': typeof ApiDocketwiseMattersRoute
+  '/api/docketwise/status': typeof ApiDocketwiseStatusRoute
+  '/api/dropbox/files': typeof ApiDropboxFilesRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
 }
 export interface FileRoutesById {
@@ -169,7 +233,11 @@ export interface FileRoutesById {
   '/(main)': typeof mainRouteRouteWithChildren
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/(main)/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/email-settings': typeof ApiEmailSettingsRoute
+  '/api/files': typeof ApiFilesRoute
+  '/api/notifications': typeof ApiNotificationsRoute
   '/api/progress': typeof ApiProgressRoute
+  '/api/queue': typeof ApiQueueRoute
   '/api/upload': typeof ApiUploadRoute
   '/dashboard/clients': typeof DashboardClientsRoute
   '/dashboard/contacts': typeof DashboardContactsRouteWithChildren
@@ -184,6 +252,10 @@ export interface FileRoutesById {
   '/(main)/auth/sign-in': typeof mainAuthSignInRoute
   '/(main)/auth/sign-up': typeof mainAuthSignUpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/docketwise/contacts': typeof ApiDocketwiseContactsRoute
+  '/api/docketwise/matters': typeof ApiDocketwiseMattersRoute
+  '/api/docketwise/status': typeof ApiDocketwiseStatusRoute
+  '/api/dropbox/files': typeof ApiDropboxFilesRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
 }
 export interface FileRouteTypes {
@@ -191,7 +263,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/dashboard'
     | '/auth'
+    | '/api/email-settings'
+    | '/api/files'
+    | '/api/notifications'
     | '/api/progress'
+    | '/api/queue'
     | '/api/upload'
     | '/dashboard/clients'
     | '/dashboard/contacts'
@@ -206,11 +282,19 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-up'
     | '/api/auth/$'
+    | '/api/docketwise/contacts'
+    | '/api/docketwise/matters'
+    | '/api/docketwise/status'
+    | '/api/dropbox/files'
     | '/dashboard/contacts/$contactId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/api/email-settings'
+    | '/api/files'
+    | '/api/notifications'
     | '/api/progress'
+    | '/api/queue'
     | '/api/upload'
     | '/dashboard/clients'
     | '/dashboard/contacts'
@@ -225,13 +309,21 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-up'
     | '/api/auth/$'
+    | '/api/docketwise/contacts'
+    | '/api/docketwise/matters'
+    | '/api/docketwise/status'
+    | '/api/dropbox/files'
     | '/dashboard/contacts/$contactId'
   id:
     | '__root__'
     | '/(main)'
     | '/dashboard'
     | '/(main)/auth'
+    | '/api/email-settings'
+    | '/api/files'
+    | '/api/notifications'
     | '/api/progress'
+    | '/api/queue'
     | '/api/upload'
     | '/dashboard/clients'
     | '/dashboard/contacts'
@@ -246,15 +338,27 @@ export interface FileRouteTypes {
     | '/(main)/auth/sign-in'
     | '/(main)/auth/sign-up'
     | '/api/auth/$'
+    | '/api/docketwise/contacts'
+    | '/api/docketwise/matters'
+    | '/api/docketwise/status'
+    | '/api/dropbox/files'
     | '/dashboard/contacts/$contactId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   mainRouteRoute: typeof mainRouteRouteWithChildren
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  ApiEmailSettingsRoute: typeof ApiEmailSettingsRoute
+  ApiFilesRoute: typeof ApiFilesRoute
+  ApiNotificationsRoute: typeof ApiNotificationsRoute
   ApiProgressRoute: typeof ApiProgressRoute
+  ApiQueueRoute: typeof ApiQueueRoute
   ApiUploadRoute: typeof ApiUploadRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiDocketwiseContactsRoute: typeof ApiDocketwiseContactsRoute
+  ApiDocketwiseMattersRoute: typeof ApiDocketwiseMattersRoute
+  ApiDocketwiseStatusRoute: typeof ApiDocketwiseStatusRoute
+  ApiDropboxFilesRoute: typeof ApiDropboxFilesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -350,11 +454,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/queue': {
+      id: '/api/queue'
+      path: '/api/queue'
+      fullPath: '/api/queue'
+      preLoaderRoute: typeof ApiQueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/progress': {
       id: '/api/progress'
       path: '/api/progress'
       fullPath: '/api/progress'
       preLoaderRoute: typeof ApiProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/notifications': {
+      id: '/api/notifications'
+      path: '/api/notifications'
+      fullPath: '/api/notifications'
+      preLoaderRoute: typeof ApiNotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/files': {
+      id: '/api/files'
+      path: '/api/files'
+      fullPath: '/api/files'
+      preLoaderRoute: typeof ApiFilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/email-settings': {
+      id: '/api/email-settings'
+      path: '/api/email-settings'
+      fullPath: '/api/email-settings'
+      preLoaderRoute: typeof ApiEmailSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(main)/auth': {
@@ -370,6 +502,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/contacts/$contactId'
       preLoaderRoute: typeof DashboardContactsContactIdRouteImport
       parentRoute: typeof DashboardContactsRoute
+    }
+    '/api/dropbox/files': {
+      id: '/api/dropbox/files'
+      path: '/api/dropbox/files'
+      fullPath: '/api/dropbox/files'
+      preLoaderRoute: typeof ApiDropboxFilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/docketwise/status': {
+      id: '/api/docketwise/status'
+      path: '/api/docketwise/status'
+      fullPath: '/api/docketwise/status'
+      preLoaderRoute: typeof ApiDocketwiseStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/docketwise/matters': {
+      id: '/api/docketwise/matters'
+      path: '/api/docketwise/matters'
+      fullPath: '/api/docketwise/matters'
+      preLoaderRoute: typeof ApiDocketwiseMattersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/docketwise/contacts': {
+      id: '/api/docketwise/contacts'
+      path: '/api/docketwise/contacts'
+      fullPath: '/api/docketwise/contacts'
+      preLoaderRoute: typeof ApiDocketwiseContactsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -465,9 +625,17 @@ const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   mainRouteRoute: mainRouteRouteWithChildren,
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  ApiEmailSettingsRoute: ApiEmailSettingsRoute,
+  ApiFilesRoute: ApiFilesRoute,
+  ApiNotificationsRoute: ApiNotificationsRoute,
   ApiProgressRoute: ApiProgressRoute,
+  ApiQueueRoute: ApiQueueRoute,
   ApiUploadRoute: ApiUploadRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiDocketwiseContactsRoute: ApiDocketwiseContactsRoute,
+  ApiDocketwiseMattersRoute: ApiDocketwiseMattersRoute,
+  ApiDocketwiseStatusRoute: ApiDocketwiseStatusRoute,
+  ApiDropboxFilesRoute: ApiDropboxFilesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
