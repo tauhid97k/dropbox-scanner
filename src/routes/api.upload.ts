@@ -45,12 +45,12 @@ export const Route = createFileRoute('/api/upload')({
           // Generate content hash for deduplication
           const contentHash = createHash('sha256').update(buffer).digest('hex')
 
-          // Check if file already processed
+          // Check if file already processed — only block if completed successfully
           const existingJob = await prisma.scanJobs.findFirst({
             where: { contentHash },
           })
 
-          if (existingJob) {
+          if (existingJob && existingJob.status === 'completed') {
             return new Response(
               JSON.stringify({
                 error: 'File already processed',
@@ -64,6 +64,15 @@ export const Route = createFileRoute('/api/upload')({
             )
           }
 
+          // If there's a previous failed/pending job for this file, delete it so we can retry
+          if (
+            existingJob &&
+            (existingJob.status === 'failed' ||
+              existingJob.status === 'pending')
+          ) {
+            await prisma.scanJobs.delete({ where: { id: existingJob.id } })
+          }
+
           // Create scan job record
           const scanJob = await prisma.scanJobs.create({
             data: {
@@ -74,6 +83,7 @@ export const Route = createFileRoute('/api/upload')({
               fileSize: file.size,
               status: 'pending',
               progress: 0,
+              stage: 'upload',
               selectedClient: selectedClient || undefined,
               selectedMatter: selectedMatter || undefined,
             },

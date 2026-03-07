@@ -121,7 +121,10 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
       )
     }
     if (failed > 0) {
-      toast.error(`${failed} file(s) failed to queue`)
+      const errors = results
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .map((r) => r.reason?.message || 'Unknown error')
+      toast.error(`${failed} file(s) failed to queue: ${errors.join(', ')}`)
     }
   }
 
