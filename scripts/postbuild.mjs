@@ -21,20 +21,39 @@ const root = resolve(__dirname, '..')
 const target = join(root, '.output', 'server', 'node_modules')
 
 // Packages that are externalized in vite.config.ts → nitro rollupConfig.external
-const EXTERNAL_PACKAGES = ['bullmq', 'dropbox']
+const EXTERNAL_PACKAGES = ['bullmq', 'dropbox', 'msgpackr']
 
 /**
  * Resolve a package from a given base directory. In pnpm, transitive deps
  * are only resolvable from the parent package's real (dereferenced) path.
+ *
+ * Some packages (e.g. msgpackr) have an `exports` map that blocks
+ * `require.resolve('pkg/package.json')`.  Fall back to resolving the main
+ * entry and walking up to the directory that contains package.json.
  */
 function resolvePkg(name, fromDir) {
+  const r = createRequire(join(fromDir, '_'))
+
+  // Strategy 1: resolve package.json directly
   try {
-    const r = createRequire(join(fromDir, '_'))
     const pkgJson = r.resolve(`${name}/package.json`)
     return dirname(realpathSync(pkgJson))
-  } catch {
-    return null
-  }
+  } catch {}
+
+  // Strategy 2: resolve main entry, then walk up to find package root
+  try {
+    const mainEntry = realpathSync(r.resolve(name))
+    let dir = dirname(mainEntry)
+    while (dir !== dirname(dir)) {
+      if (existsSync(join(dir, 'package.json'))) {
+        const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+        if (pkg.name === name) return dir
+      }
+      dir = dirname(dir)
+    }
+  } catch {}
+
+  return null
 }
 
 function copyPkg(name, fromDir, visited = new Set()) {
