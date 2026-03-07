@@ -19,7 +19,6 @@ import { Route as DashboardQueueRouteImport } from './routes/dashboard/queue'
 import { Route as DashboardNotificationsRouteImport } from './routes/dashboard/notifications'
 import { Route as DashboardMattersRouteImport } from './routes/dashboard/matters'
 import { Route as DashboardFilesRouteImport } from './routes/dashboard/files'
-import { Route as DashboardContactsRouteImport } from './routes/dashboard/contacts'
 import { Route as DashboardClientsRouteImport } from './routes/dashboard/clients'
 import { Route as ApiUploadRouteImport } from './routes/api.upload'
 import { Route as ApiQueueRouteImport } from './routes/api.queue'
@@ -29,6 +28,7 @@ import { Route as ApiFilesRouteImport } from './routes/api.files'
 import { Route as ApiEmailSettingsRouteImport } from './routes/api.email-settings'
 import { Route as ApiDisconnectRouteImport } from './routes/api.disconnect'
 import { Route as mainAuthRouteRouteImport } from './routes/(main)/auth/route'
+import { Route as DashboardContactsIndexRouteImport } from './routes/dashboard/contacts.index'
 import { Route as DashboardContactsContactIdRouteImport } from './routes/dashboard/contacts.$contactId'
 import { Route as ApiDropboxFilesRouteImport } from './routes/api.dropbox.files'
 import { Route as ApiDropboxDownloadRouteImport } from './routes/api.dropbox.download'
@@ -88,11 +88,6 @@ const DashboardFilesRoute = DashboardFilesRouteImport.update({
   path: '/files',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardContactsRoute = DashboardContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
 const DashboardClientsRoute = DashboardClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
@@ -138,11 +133,16 @@ const mainAuthRouteRoute = mainAuthRouteRouteImport.update({
   path: '/auth',
   getParentRoute: () => mainRouteRoute,
 } as any)
+const DashboardContactsIndexRoute = DashboardContactsIndexRouteImport.update({
+  id: '/contacts/',
+  path: '/contacts/',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
 const DashboardContactsContactIdRoute =
   DashboardContactsContactIdRouteImport.update({
-    id: '/$contactId',
-    path: '/$contactId',
-    getParentRoute: () => DashboardContactsRoute,
+    id: '/contacts/$contactId',
+    path: '/contacts/$contactId',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const ApiDropboxFilesRoute = ApiDropboxFilesRouteImport.update({
   id: '/api/dropbox/files',
@@ -196,7 +196,6 @@ export interface FileRoutesByFullPath {
   '/api/queue': typeof ApiQueueRoute
   '/api/upload': typeof ApiUploadRoute
   '/dashboard/clients': typeof DashboardClientsRoute
-  '/dashboard/contacts': typeof DashboardContactsRouteWithChildren
   '/dashboard/files': typeof DashboardFilesRoute
   '/dashboard/matters': typeof DashboardMattersRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
@@ -214,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/api/dropbox/download': typeof ApiDropboxDownloadRoute
   '/api/dropbox/files': typeof ApiDropboxFilesRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
+  '/dashboard/contacts/': typeof DashboardContactsIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof mainAuthRouteRouteWithChildren
@@ -225,7 +225,6 @@ export interface FileRoutesByTo {
   '/api/queue': typeof ApiQueueRoute
   '/api/upload': typeof ApiUploadRoute
   '/dashboard/clients': typeof DashboardClientsRoute
-  '/dashboard/contacts': typeof DashboardContactsRouteWithChildren
   '/dashboard/files': typeof DashboardFilesRoute
   '/dashboard/matters': typeof DashboardMattersRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
@@ -243,6 +242,7 @@ export interface FileRoutesByTo {
   '/api/dropbox/download': typeof ApiDropboxDownloadRoute
   '/api/dropbox/files': typeof ApiDropboxFilesRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
+  '/dashboard/contacts': typeof DashboardContactsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -257,7 +257,6 @@ export interface FileRoutesById {
   '/api/queue': typeof ApiQueueRoute
   '/api/upload': typeof ApiUploadRoute
   '/dashboard/clients': typeof DashboardClientsRoute
-  '/dashboard/contacts': typeof DashboardContactsRouteWithChildren
   '/dashboard/files': typeof DashboardFilesRoute
   '/dashboard/matters': typeof DashboardMattersRoute
   '/dashboard/notifications': typeof DashboardNotificationsRoute
@@ -275,6 +274,7 @@ export interface FileRoutesById {
   '/api/dropbox/download': typeof ApiDropboxDownloadRoute
   '/api/dropbox/files': typeof ApiDropboxFilesRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
+  '/dashboard/contacts/': typeof DashboardContactsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -289,7 +289,6 @@ export interface FileRouteTypes {
     | '/api/queue'
     | '/api/upload'
     | '/dashboard/clients'
-    | '/dashboard/contacts'
     | '/dashboard/files'
     | '/dashboard/matters'
     | '/dashboard/notifications'
@@ -307,6 +306,7 @@ export interface FileRouteTypes {
     | '/api/dropbox/download'
     | '/api/dropbox/files'
     | '/dashboard/contacts/$contactId'
+    | '/dashboard/contacts/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -318,7 +318,6 @@ export interface FileRouteTypes {
     | '/api/queue'
     | '/api/upload'
     | '/dashboard/clients'
-    | '/dashboard/contacts'
     | '/dashboard/files'
     | '/dashboard/matters'
     | '/dashboard/notifications'
@@ -336,6 +335,7 @@ export interface FileRouteTypes {
     | '/api/dropbox/download'
     | '/api/dropbox/files'
     | '/dashboard/contacts/$contactId'
+    | '/dashboard/contacts'
   id:
     | '__root__'
     | '/(main)'
@@ -349,7 +349,6 @@ export interface FileRouteTypes {
     | '/api/queue'
     | '/api/upload'
     | '/dashboard/clients'
-    | '/dashboard/contacts'
     | '/dashboard/files'
     | '/dashboard/matters'
     | '/dashboard/notifications'
@@ -367,6 +366,7 @@ export interface FileRouteTypes {
     | '/api/dropbox/download'
     | '/api/dropbox/files'
     | '/dashboard/contacts/$contactId'
+    | '/dashboard/contacts/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -459,13 +459,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardFilesRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/contacts': {
-      id: '/dashboard/contacts'
-      path: '/contacts'
-      fullPath: '/dashboard/contacts'
-      preLoaderRoute: typeof DashboardContactsRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
     '/dashboard/clients': {
       id: '/dashboard/clients'
       path: '/clients'
@@ -529,12 +522,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof mainAuthRouteRouteImport
       parentRoute: typeof mainRouteRoute
     }
+    '/dashboard/contacts/': {
+      id: '/dashboard/contacts/'
+      path: '/contacts'
+      fullPath: '/dashboard/contacts/'
+      preLoaderRoute: typeof DashboardContactsIndexRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
     '/dashboard/contacts/$contactId': {
       id: '/dashboard/contacts/$contactId'
-      path: '/$contactId'
+      path: '/contacts/$contactId'
       fullPath: '/dashboard/contacts/$contactId'
       preLoaderRoute: typeof DashboardContactsContactIdRouteImport
-      parentRoute: typeof DashboardContactsRoute
+      parentRoute: typeof DashboardRouteRoute
     }
     '/api/dropbox/files': {
       id: '/api/dropbox/files'
@@ -623,20 +623,8 @@ const mainRouteRouteWithChildren = mainRouteRoute._addFileChildren(
   mainRouteRouteChildren,
 )
 
-interface DashboardContactsRouteChildren {
-  DashboardContactsContactIdRoute: typeof DashboardContactsContactIdRoute
-}
-
-const DashboardContactsRouteChildren: DashboardContactsRouteChildren = {
-  DashboardContactsContactIdRoute: DashboardContactsContactIdRoute,
-}
-
-const DashboardContactsRouteWithChildren =
-  DashboardContactsRoute._addFileChildren(DashboardContactsRouteChildren)
-
 interface DashboardRouteRouteChildren {
   DashboardClientsRoute: typeof DashboardClientsRoute
-  DashboardContactsRoute: typeof DashboardContactsRouteWithChildren
   DashboardFilesRoute: typeof DashboardFilesRoute
   DashboardMattersRoute: typeof DashboardMattersRoute
   DashboardNotificationsRoute: typeof DashboardNotificationsRoute
@@ -644,11 +632,12 @@ interface DashboardRouteRouteChildren {
   DashboardSettingsRoute: typeof DashboardSettingsRoute
   DashboardUploadRoute: typeof DashboardUploadRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardContactsContactIdRoute: typeof DashboardContactsContactIdRoute
+  DashboardContactsIndexRoute: typeof DashboardContactsIndexRoute
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardClientsRoute: DashboardClientsRoute,
-  DashboardContactsRoute: DashboardContactsRouteWithChildren,
   DashboardFilesRoute: DashboardFilesRoute,
   DashboardMattersRoute: DashboardMattersRoute,
   DashboardNotificationsRoute: DashboardNotificationsRoute,
@@ -656,6 +645,8 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardSettingsRoute: DashboardSettingsRoute,
   DashboardUploadRoute: DashboardUploadRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardContactsContactIdRoute: DashboardContactsContactIdRoute,
+  DashboardContactsIndexRoute: DashboardContactsIndexRoute,
 }
 
 const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(

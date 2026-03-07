@@ -25,7 +25,7 @@ const checkDocketwise = createServerFn({ method: 'GET' }).handler(async () => {
   return { connected }
 })
 
-export const Route = createFileRoute('/dashboard/contacts')({
+export const Route = createFileRoute('/dashboard/contacts/')({
   component: ContactsPage,
   pendingComponent: PageLoading,
   loader: () => checkDocketwise(),
