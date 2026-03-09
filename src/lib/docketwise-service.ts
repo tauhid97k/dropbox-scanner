@@ -122,11 +122,15 @@ export class DocketwiseService {
     page = 1,
     type?: 'Person' | 'Institution',
     filter?: string,
+    perPage = 200,
   ): Promise<{
-    contacts: DocketwiseContact[]
+    contacts: Array<DocketwiseContact>
     pagination: DocketwisePagination
   }> {
-    const params = new URLSearchParams({ page: String(page) })
+    const params = new URLSearchParams({
+      page: String(page),
+      per_page: String(perPage),
+    })
     if (type) params.set('type', type)
     if (filter) params.set('filter', filter)
 
@@ -167,12 +171,18 @@ export class DocketwiseService {
   async getMatters(
     page = 1,
     filter?: string,
+    clientId?: number,
+    perPage = 200,
   ): Promise<{
-    matters: DocketwiseMatter[]
+    matters: Array<DocketwiseMatter>
     pagination: DocketwisePagination
   }> {
-    const params = new URLSearchParams({ page: String(page) })
+    const params = new URLSearchParams({
+      page: String(page),
+      per_page: String(perPage),
+    })
     if (filter) params.set('filter', filter)
+    if (clientId) params.set('client_id', String(clientId))
 
     const response = await fetchWithRetry(
       `${DOCKETWISE_API_URL}/matters?${params}`,
@@ -210,7 +220,7 @@ export class DocketwiseService {
     page = 1,
     search?: string,
   ): Promise<{
-    documents: DocketwiseDocument[]
+    documents: Array<DocketwiseDocument>
     pagination: DocketwisePagination
   }> {
     const params = new URLSearchParams({ page: String(page) })

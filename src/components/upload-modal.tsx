@@ -10,7 +10,7 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field'
 import { cn } from '@/lib/utils'
 import { Loader2, Upload, X } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 
 interface UploadModalProps {
@@ -26,6 +26,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
   const [matterName, setMatterName] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [matterKey, setMatterKey] = useState(0)
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
@@ -138,7 +139,11 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
 
   const fetchClients = async (search: string, page: number) => {
     try {
-      const params = new URLSearchParams({ page: String(page), type: 'Person' })
+      const params = new URLSearchParams({
+        page: String(page),
+        type: 'Person',
+        per_page: '15',
+      })
       if (search) params.set('filter', search)
       const response = await fetch(`/api/docketwise/contacts?${params}`)
       if (!response.ok) throw new Error('Failed to fetch contacts')
@@ -173,31 +178,40 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
     }
   }
 
-  const fetchMatters = async (search: string, page: number) => {
-    try {
-      const params = new URLSearchParams({ page: String(page) })
-      if (search) params.set('filter', search)
-      const response = await fetch(`/api/docketwise/matters?${params}`)
-      if (!response.ok) throw new Error('Failed to fetch matters')
-      const data = await response.json()
+  const fetchMatters = useCallback(
+    async (search: string, page: number) => {
+      if (!clientId) return { options: [], hasMore: false }
 
-      const options = (data.matters || []).map(
-        (matter: { id: number; title: string }) => ({
-          value: String(matter.id),
-          label: matter.title,
-          docketwiseId: matter.id,
-        }),
-      )
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          client_id: clientId,
+          per_page: '15',
+        })
+        if (search) params.set('filter', search)
+        const response = await fetch(`/api/docketwise/matters?${params}`)
+        if (!response.ok) throw new Error('Failed to fetch matters')
+        const data = await response.json()
 
-      return {
-        options,
-        hasMore: data.pagination?.nextPage !== null,
+        const options = (data.matters || []).map(
+          (matter: { id: number; title: string }) => ({
+            value: String(matter.id),
+            label: matter.title,
+            docketwiseId: matter.id,
+          }),
+        )
+
+        return {
+          options,
+          hasMore: data.pagination?.nextPage !== null,
+        }
+      } catch (error) {
+        console.error('Failed to fetch matters:', error)
+        return { options: [], hasMore: false }
       }
-    } catch (error) {
-      console.error('Failed to fetch matters:', error)
-      return { options: [], hasMore: false }
-    }
-  }
+    },
+    [clientId],
+  )
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
@@ -283,12 +297,18 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
           )}
 
           {/* Contact and Matter Selection */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-4">
             <Field>
               <FieldLabel>Contact (Client) *</FieldLabel>
               <AdvancedSelect
                 value={clientId}
-                onValueChange={setClientId}
+                onValueChange={(val) => {
+                  setClientId(val)
+                  // Reset matter when client changes
+                  setMatterId('')
+                  setMatterName('')
+                  setMatterKey((k) => k + 1)
+                }}
                 onOptionSelect={(opt) => setClientName(opt?.label || '')}
                 placeholder="Select contact..."
                 searchPlaceholder="Search contacts..."
@@ -298,12 +318,21 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
             <Field>
               <FieldLabel>Matter *</FieldLabel>
               <AdvancedSelect
+                key={matterKey}
                 value={matterId}
                 onValueChange={setMatterId}
                 onOptionSelect={(opt) => setMatterName(opt?.label || '')}
-                placeholder="Select matter..."
+                placeholder={
+                  clientId ? 'Select matter...' : 'Select a contact first...'
+                }
                 searchPlaceholder="Search matters..."
+                emptyText={
+                  clientId
+                    ? 'No matters found for this contact.'
+                    : 'Select a contact first.'
+                }
                 fetchOptions={fetchMatters}
+                disabled={!clientId}
               />
             </Field>
           </div>

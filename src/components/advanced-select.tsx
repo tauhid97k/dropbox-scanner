@@ -1,3 +1,5 @@
+import { Check, ChevronDown } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Command,
   CommandEmpty,
@@ -12,8 +14,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { Check, ChevronDown } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface AdvancedSelectOption {
   value: string
@@ -170,8 +170,11 @@ export function AdvancedSelect({
           />
           <CommandList className="max-h-75 overflow-y-auto">
             {isLoading ? (
-              <div className="flex items-center justify-center py-6">
+              <div className="flex items-center justify-center gap-2 py-6">
                 <div className="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span className="text-sm text-muted-foreground">
+                  Loading...
+                </span>
               </div>
             ) : (
               <>
@@ -219,10 +222,15 @@ export function AdvancedSelect({
                     {hasMore && (
                       <div
                         ref={observerTarget}
-                        className="flex items-center justify-center py-2"
+                        className="flex items-center justify-center gap-2 py-2"
                       >
                         {isLoadingMore && (
-                          <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          <>
+                            <div className="size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            <span className="text-xs text-muted-foreground">
+                              Loading...
+                            </span>
+                          </>
                         )}
                       </div>
                     )}

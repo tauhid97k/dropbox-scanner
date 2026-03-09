@@ -1,6 +1,6 @@
+import { createFileRoute } from '@tanstack/react-router'
 import { auth } from '@/lib/auth'
 import { createDocketwiseService } from '@/lib/docketwise-service'
-import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/api/docketwise/matters')({
   server: {
@@ -21,6 +21,9 @@ export const Route = createFileRoute('/api/docketwise/matters')({
         const url = new URL(request.url)
         const page = parseInt(url.searchParams.get('page') || '1')
         const filter = url.searchParams.get('filter') || undefined
+        const clientIdParam = url.searchParams.get('client_id')
+        const clientId = clientIdParam ? parseInt(clientIdParam, 10) : undefined
+        const perPage = parseInt(url.searchParams.get('per_page') || '200')
 
         try {
           const service = await createDocketwiseService()
@@ -31,7 +34,12 @@ export const Route = createFileRoute('/api/docketwise/matters')({
             )
           }
 
-          const result = await service.getMatters(page, filter)
+          const result = await service.getMatters(
+            page,
+            filter,
+            clientId,
+            perPage,
+          )
 
           return new Response(
             JSON.stringify({
