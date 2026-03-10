@@ -44,6 +44,11 @@ export const auth = betterAuth({
           },
         })
 
+        const appUrl = (
+          process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+        ).replace(/\/$/, '')
+        const logoUrl = `${appUrl}/logo.png`
+
         const html = `
 <!DOCTYPE html>
 <html>
@@ -58,16 +63,7 @@ export const auth = betterAuth({
         <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
           <tr>
             <td style="background: linear-gradient(135deg, #0061FE 0%, #0042A8 100%); padding: 32px; text-align: center;">
-              <table cellpadding="0" cellspacing="0" style="margin: 0 auto 16px;">
-                <tr>
-                  <td style="vertical-align: middle;">
-                    <img src="https://cfl.dropboxstatic.com/static/images/logo_catalog/dropbox_logo_glyph_2024_m1-vflbgFqjD.svg" alt="Dropbox" style="height: 36px; width: 36px;" />
-                  </td>
-                  <td style="vertical-align: middle; padding-left: 10px;">
-                    <span style="font-size: 20px; font-weight: 700; color: #ffffff;">Dropbox Scanner</span>
-                  </td>
-                </tr>
-              </table>
+              <img src="${logoUrl}" alt="Brand Logo" width="160" style="display: block; margin: 0 auto 16px; max-width: 160px; height: auto;" />
               <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: #ffffff;">
                 Password Reset Request
               </h1>
@@ -95,7 +91,7 @@ export const auth = betterAuth({
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center">
-                    <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #111827;">Dropbox Scanner</p>
+                    <img src="${logoUrl}" alt="Brand Logo" width="100" style="display: block; margin: 0 auto 8px; max-width: 100px; height: auto;" />
                     <p style="margin: 0; font-size: 13px; color: #6b7280;">Automated Document Processing</p>
                   </td>
                 </tr>

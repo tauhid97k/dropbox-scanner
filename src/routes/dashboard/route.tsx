@@ -132,8 +132,8 @@ function DashboardLayout() {
         <DrawerContent>
           <DrawerHeader>
             <div className="flex items-center gap-3">
-              <img src="/dropbox.png" alt="Dropbox" className="h-6 w-6" />
-              <DrawerTitle>Dropbox Scanner</DrawerTitle>
+              <img src="/logo.png" alt="Brand Logo" width={150} />
+              <DrawerTitle className="sr-only">Dashboard</DrawerTitle>
             </div>
             <DrawerClose
               className={cn(
@@ -157,9 +157,8 @@ function DashboardLayout() {
           sidebarCollapsed && '-ml-72',
         )}
       >
-        <div className="flex h-16 items-center justify-center gap-3 border-b">
-          <img src="/dropbox.png" alt="Dropbox" className="h-6 w-6" />
-          <h1 className="text-xl font-bold">Dropbox Scanner</h1>
+        <div className="flex h-16 items-center justify-center border-b">
+          <img src="/logo.png" alt="Brand Logo" width={150} />
         </div>
         <SidebarNav />
       </aside>
