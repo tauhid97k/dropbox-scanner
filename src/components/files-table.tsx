@@ -17,7 +17,6 @@ import {
 import { format } from 'date-fns'
 import {
   Download,
-  Eye,
   FileIcon,
   FileText,
   Image,
@@ -40,16 +39,9 @@ interface FileItem {
 interface FilesTableProps {
   clientId?: string
   matterId?: string
-  onViewFile?: (file: FileItem) => void
-  onDownloadFile?: (file: FileItem) => void
 }
 
-export function FilesTable({
-  clientId,
-  matterId,
-  onViewFile,
-  onDownloadFile,
-}: FilesTableProps) {
+export function FilesTable({ clientId, matterId }: FilesTableProps) {
   const [search, setSearch] = useState('')
   const [dateFilter, setDateFilter] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -177,22 +169,21 @@ export function FilesTable({
                   </TableCell>
                   <TableCell>{getStatusBadge(file.status)}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onViewFile?.(file)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDownloadFile?.(file)}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={!file.dropboxPath}
+                      onClick={() => {
+                        if (file.dropboxPath) {
+                          window.open(
+                            `/api/dropbox/download?path=${encodeURIComponent(file.dropboxPath)}`,
+                            '_blank',
+                          )
+                        }
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))

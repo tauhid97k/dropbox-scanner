@@ -329,7 +329,12 @@ export async function ensureWorkersStarted() {
 
           await prisma.scanJobs.update({
             where: { id: scanJobId },
-            data: { status: 'completed', progress: 100, stage: 'completed' },
+            data: {
+              status: 'completed',
+              progress: 100,
+              stage: 'completed',
+              errorMessage: null,
+            },
           })
           await publishJobUpdate(scanJobId, {
             progress: 100,
@@ -359,7 +364,7 @@ export async function ensureWorkersStarted() {
           throw new Error(errorMessage)
         }
       },
-      { connection, concurrency: 2 },
+      { connection, concurrency: 1, limiter: { max: 1, duration: 2000 } },
     )
 
     docketwiseWorker.on('failed', (job, err) => {

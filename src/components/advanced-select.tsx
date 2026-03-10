@@ -1,5 +1,3 @@
-import { Check, ChevronDown } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Command,
   CommandEmpty,
@@ -14,6 +12,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { Check, ChevronDown } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 export interface AdvancedSelectOption {
   value: string
@@ -54,15 +54,20 @@ export function AdvancedSelect({
   const [open, setOpen] = useState(false)
   const [options, setOptions] = useState<Array<AdvancedSelectOption>>([])
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const observerTarget = useRef<HTMLDivElement | null>(null)
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
+  const pageRef = useRef(1)
+  const searchRef = useRef('')
+  const loadingRef = useRef(false)
 
   const loadOptions = useCallback(
     async (searchTerm: string, pageNum: number, append = false) => {
+      if (loadingRef.current) return
+      loadingRef.current = true
+
       if (pageNum === 1) {
         setIsLoading(true)
       } else {
@@ -75,11 +80,14 @@ export function AdvancedSelect({
           append ? [...prev, ...result.options] : result.options,
         )
         setHasMore(result.hasMore)
+        pageRef.current = pageNum
+        searchRef.current = searchTerm
       } catch (error) {
         console.error('Failed to load options:', error)
       } finally {
         setIsLoading(false)
         setIsLoadingMore(false)
+        loadingRef.current = false
       }
     },
     [fetchOptions],
@@ -92,7 +100,7 @@ export function AdvancedSelect({
     }
 
     debounceTimer.current = setTimeout(() => {
-      setPage(1)
+      pageRef.current = 1
       loadOptions(search, 1, false)
     }, 300)
 
@@ -103,19 +111,13 @@ export function AdvancedSelect({
     }
   }, [search, loadOptions])
 
-  // Intersection Observer for infinite scroll
+  // Intersection Observer for infinite scroll — stable, no state deps
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (
-          entries[0]?.isIntersecting &&
-          hasMore &&
-          !isLoading &&
-          !isLoadingMore
-        ) {
-          const nextPage = page + 1
-          setPage(nextPage)
-          loadOptions(search, nextPage, true)
+        if (entries[0]?.isIntersecting && !loadingRef.current) {
+          const nextPage = pageRef.current + 1
+          loadOptions(searchRef.current, nextPage, true)
         }
       },
       { threshold: 0.1 },
@@ -131,7 +133,18 @@ export function AdvancedSelect({
         observer.unobserve(currentTarget)
       }
     }
-  }, [hasMore, isLoading, isLoadingMore, page, search, loadOptions])
+  }, [loadOptions])
+
+  // Client-side filtering as fallback (API filter may not match all cases)
+  const filteredOptions = useMemo(() => {
+    if (!search) return options
+    const term = search.toLowerCase()
+    return options.filter(
+      (o) =>
+        o.label.toLowerCase().includes(term) ||
+        (o.description && o.description.toLowerCase().includes(term)),
+    )
+  }, [options, search])
 
   const selectedOption = options.find((option) => option.value === value)
 
@@ -178,12 +191,12 @@ export function AdvancedSelect({
               </div>
             ) : (
               <>
-                {options.length === 0 && (
+                {filteredOptions.length === 0 && (
                   <CommandEmpty>{emptyText}</CommandEmpty>
                 )}
-                {options.length > 0 && (
+                {filteredOptions.length > 0 && (
                   <CommandGroup>
-                    {options.map((option) => {
+                    {filteredOptions.map((option) => {
                       const isSelected = value === option.value
                       return (
                         <CommandItem

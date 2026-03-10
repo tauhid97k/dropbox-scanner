@@ -157,7 +157,7 @@ function ContactsPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Loader2 className="mr-2 size-6 animate-spin" />
           <span>Loading contacts...</span>
         </div>
       ) : (

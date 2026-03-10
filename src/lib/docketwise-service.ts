@@ -2,11 +2,12 @@ import { getDocketwiseToken } from './auth-tokens'
 
 const DOCKETWISE_API_URL =
   process.env.DOCKETWISE_API_URL || 'https://app.docketwise.com/api/v1'
-const MAX_RETRIES = 3
+const MAX_RETRIES = 5
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Fetch with retry and rate-limit handling
+// Docketwise API: 120 requests/min. On 429, Retry-After header may be present.
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
@@ -18,11 +19,12 @@ async function fetchWithRetry(
     if (response.status === 429) {
       if (attempt < retries) {
         const retryAfter = response.headers.get('Retry-After')
+        // Default backoff: 5s, 10s, 20s, 40s, 80s (exponential)
         const backoffMs = retryAfter
           ? parseInt(retryAfter) * 1000
-          : Math.pow(2, attempt + 1) * 1000
+          : Math.min(5000 * Math.pow(2, attempt), 120000)
         console.warn(
-          `[DOCKETWISE] Rate limited, waiting ${backoffMs}ms before retry ${attempt + 1}/${retries}`,
+          `[DOCKETWISE] Rate limited (429), waiting ${backoffMs}ms before retry ${attempt + 1}/${retries}`,
         )
         await delay(backoffMs)
         continue

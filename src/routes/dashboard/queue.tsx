@@ -172,7 +172,7 @@ function QueuePage() {
                   <p className="text-sm text-muted-foreground">
                     Stage: {getStageLabel(job.stage)}
                   </p>
-                  {job.errorMessage && (
+                  {job.errorMessage && job.status !== 'completed' && (
                     <p className="text-sm text-destructive">
                       Error: {job.errorMessage}
                     </p>
