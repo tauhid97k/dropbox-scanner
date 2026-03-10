@@ -201,6 +201,10 @@ model ScanJobs {
     selectedMatter  String?
     aiConfidence    Float?
   
+    // AI Analysis
+    isRfe           Boolean         @default(false)
+    aiAnalysis      Json?           // Full Gemini analysis result
+
     // Results
     dropboxPath     String?
     docketwiseDocId String?

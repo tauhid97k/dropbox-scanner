@@ -23,7 +23,7 @@ import {
   Loader2,
   Search,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface FileItem {
   id: string
@@ -43,19 +43,40 @@ interface FilesTableProps {
 
 export function FilesTable({ clientId, matterId }: FilesTableProps) {
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [dateFilter, setDateFilter] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [files, setFiles] = useState<Array<FileItem>>([])
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null)
+
+  // Debounce search input
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(search)
+      setCurrentPage(1)
+    }, 300)
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    }
+  }, [search])
+
+  // Reset page on date filter change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [dateFilter])
 
   const fetchFiles = useCallback(
-    async (page: number) => {
+    async (page: number, searchTerm: string, date: string) => {
       setIsLoading(true)
       try {
         const params = new URLSearchParams({ page: String(page) })
         if (clientId) params.set('clientId', clientId)
         if (matterId) params.set('matterId', matterId)
+        if (searchTerm) params.set('search', searchTerm)
+        if (date) params.set('date', date)
         const response = await fetch(`/api/files?${params}`)
         if (!response.ok) throw new Error('Failed to fetch files')
         const data = await response.json()
@@ -72,8 +93,8 @@ export function FilesTable({ clientId, matterId }: FilesTableProps) {
   )
 
   useEffect(() => {
-    fetchFiles(currentPage)
-  }, [currentPage, fetchFiles])
+    fetchFiles(currentPage, debouncedSearch, dateFilter)
+  }, [currentPage, debouncedSearch, dateFilter, fetchFiles])
 
   const getFileIcon = (fileType: string) => {
     if (fileType.includes('pdf')) {

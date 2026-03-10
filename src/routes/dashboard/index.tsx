@@ -6,13 +6,13 @@ import { isDocketwiseConnected, isDropboxConnected } from '@/lib/auth-tokens'
 import { prisma } from '@/lib/prisma'
 import { createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
-import { Activity, FileText, Loader2, Package } from 'lucide-react'
+import { Activity, AlertTriangle, FileText, Loader2 } from 'lucide-react'
 
 const getDashboardData = createServerFn({ method: 'GET' }).handler(async () => {
   const now = new Date()
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-  const [totalFiles, inQueue, processedToday, fileTypes, docketwise, dropbox] =
+  const [totalFiles, inQueue, processedToday, rfeCount, docketwise, dropbox] =
     await Promise.all([
       prisma.scanJobs.count(),
       prisma.scanJobs.count({
@@ -21,14 +21,14 @@ const getDashboardData = createServerFn({ method: 'GET' }).handler(async () => {
       prisma.scanJobs.count({
         where: { status: 'completed', updatedAt: { gte: startOfDay } },
       }),
-      prisma.scanJobs
-        .groupBy({ by: ['mimeType'], _count: true })
-        .then((r) => r.length),
+      prisma.scanJobs.count({
+        where: { isRfe: true },
+      }),
       isDocketwiseConnected(),
       isDropboxConnected(),
     ])
 
-  return { totalFiles, inQueue, processedToday, fileTypes, docketwise, dropbox }
+  return { totalFiles, inQueue, processedToday, rfeCount, docketwise, dropbox }
 })
 
 export const Route = createFileRoute('/dashboard/')({
@@ -69,17 +69,6 @@ function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">File Types</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.fileTypes}</div>
-            <p className="text-xs text-muted-foreground">Different formats</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Queue</CardTitle>
             <Loader2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -101,6 +90,19 @@ function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{data.processedToday}</div>
             <p className="text-xs text-muted-foreground">Completed today</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">RFEs Detected</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.rfeCount}</div>
+            <p className="text-xs text-muted-foreground">
+              Requests for Evidence
+            </p>
           </CardContent>
         </Card>
       </div>

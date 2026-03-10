@@ -23,17 +23,30 @@ export const Route = createFileRoute('/api/files')({
         const page = parseInt(url.searchParams.get('page') || '1')
         const clientId = url.searchParams.get('clientId')
         const matterId = url.searchParams.get('matterId')
+        const search = url.searchParams.get('search') || ''
+        const date = url.searchParams.get('date') || ''
 
         try {
           const where: Record<string, unknown> = {}
           if (clientId) {
-            // Match by clientName containing the ID (for old data) or scanJob.selectedClient
             where.OR = [
               { clientName: { contains: clientId } },
               { scanJob: { selectedClient: { contains: clientId } } },
             ]
           }
           if (matterId) where.scanJob = { selectedMatter: matterId }
+          if (search) {
+            where.OR = [
+              { fileName: { contains: search, mode: 'insensitive' } },
+              { clientName: { contains: search, mode: 'insensitive' } },
+            ]
+          }
+          if (date) {
+            const dayStart = new Date(date)
+            const dayEnd = new Date(date)
+            dayEnd.setDate(dayEnd.getDate() + 1)
+            where.uploadedAt = { gte: dayStart, lt: dayEnd }
+          }
 
           const [files, total] = await Promise.all([
             prisma.fileMetadata.findMany({

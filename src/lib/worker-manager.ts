@@ -51,6 +51,34 @@ export async function ensureWorkersStarted() {
           })
 
           const buffer = Buffer.from(fileData, 'base64')
+
+          // Run Gemini AI analysis for RFE detection
+          try {
+            const { analyzeDocument } = await import('@/lib/gemini-service')
+            const analysis = await analyzeDocument(buffer, originalName)
+            await prisma.scanJobs.update({
+              where: { id: scanJobId },
+              data: {
+                isRfe: analysis.isRfe,
+                aiAnalysis: analysis as any,
+                aiConfidence: analysis.confidence,
+                progress: 20,
+              },
+            })
+            await publishJobUpdate(scanJobId, {
+              progress: 20,
+              stage: 'ai-analysis',
+            })
+            console.log(
+              `[Worker] AI analysis for ${originalName}: isRfe=${analysis.isRfe}, confidence=${analysis.confidence}`,
+            )
+          } catch (aiError) {
+            console.warn(
+              '[Worker] Gemini AI analysis failed, continuing:',
+              aiError,
+            )
+          }
+
           // Dropbox folder format: clientName_clientId (e.g. "John_Smith_25146161")
           const folderName = clientName
             ? `${clientName.replace(/\s+/g, '_')}_${selectedClient}`
