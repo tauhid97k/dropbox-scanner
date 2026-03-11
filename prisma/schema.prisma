@@ -204,6 +204,7 @@ model ScanJobs {
     // AI Analysis
     isRfe           Boolean         @default(false)
     aiAnalysis      Json?           // Full Gemini analysis result
+    renamedFileName String?         // AI-generated smart file name (DocType_Client_Date.ext)
 
     // Results
     dropboxPath     String?

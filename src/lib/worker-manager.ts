@@ -52,16 +52,23 @@ export async function ensureWorkersStarted() {
 
           const buffer = Buffer.from(fileData, 'base64')
 
-          // Run Gemini AI analysis for RFE detection
+          // Run Gemini AI analysis — full OCR + document classification in one pass
+          let smartFileName = originalName // fallback to original name
           try {
-            const { analyzeDocument } = await import('@/lib/gemini-service')
+            const { analyzeDocument, buildSmartFileName } =
+              await import('@/lib/gemini-service')
             const analysis = await analyzeDocument(buffer, originalName)
+
+            // Build smart file name: DocType_ClientName_DateIssued.ext
+            smartFileName = buildSmartFileName(analysis, originalName)
+
             await prisma.scanJobs.update({
               where: { id: scanJobId },
               data: {
                 isRfe: analysis.isRfe,
                 aiAnalysis: analysis as any,
                 aiConfidence: analysis.confidence,
+                renamedFileName: smartFileName,
                 progress: 20,
               },
             })
@@ -70,11 +77,11 @@ export async function ensureWorkersStarted() {
               stage: 'ai-analysis',
             })
             console.log(
-              `[Worker] AI analysis for ${originalName}: isRfe=${analysis.isRfe}, confidence=${analysis.confidence}`,
+              `[Worker] AI analysis for ${originalName}: isRfe=${analysis.isRfe}, docType=${analysis.documentType}, client=${analysis.clientName}, date=${analysis.dateIssued}, confidence=${analysis.confidence} → renamed to "${smartFileName}"`,
             )
           } catch (aiError) {
             console.warn(
-              '[Worker] Gemini AI analysis failed, continuing:',
+              '[Worker] Gemini AI analysis failed, continuing with original name:',
               aiError,
             )
           }
@@ -89,7 +96,7 @@ export async function ensureWorkersStarted() {
           })
           await publishJobUpdate(scanJobId, { progress: 30, stage: 'dropbox' })
 
-          // Upload to Dropbox
+          // Upload to Dropbox using the AI-renamed file name
           const dropbox = await createDropboxService()
           if (!dropbox) {
             throw new Error(
@@ -100,7 +107,7 @@ export async function ensureWorkersStarted() {
           const { path: dropboxPath } = await dropbox.uploadFile(
             folderName,
             buffer,
-            originalName,
+            smartFileName,
           )
 
           await prisma.scanJobs.update({
@@ -113,19 +120,19 @@ export async function ensureWorkersStarted() {
             dropboxPath,
           })
 
-          // Create file metadata record
+          // Create file metadata record with the renamed file name
           await prisma.fileMetadata.create({
             data: {
               scanJobId,
               dropboxPath,
               clientName: clientName || selectedClient || 'unknown',
-              fileName: originalName,
+              fileName: smartFileName,
               fileType: mimeType,
               uploadedBy: userId,
             },
           })
 
-          // Enqueue Docketwise upload job
+          // Enqueue Docketwise upload job with the renamed file name
           const docketwiseQueue = await getDocketwiseQueue()
           await docketwiseQueue.add('upload-document', {
             scanJobId,
@@ -135,11 +142,11 @@ export async function ensureWorkersStarted() {
             clientId: selectedClient,
             matterId: selectedMatter,
             matterName: matterName || selectedMatter,
-            fileName: originalName,
+            fileName: smartFileName,
             fileData,
           })
 
-          return { success: true, dropboxPath, folderName }
+          return { success: true, dropboxPath, folderName, smartFileName }
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error'
