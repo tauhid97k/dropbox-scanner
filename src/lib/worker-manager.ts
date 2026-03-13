@@ -38,65 +38,21 @@ export async function ensureWorkersStarted() {
           clientName,
           selectedMatter,
           matterName,
+          uploadToDocketwise,
         } = job.data
 
         try {
+          // ── Step 1: Upload to Dropbox /Scans/Queue (staging for resume) ──
           await prisma.scanJobs.update({
             where: { id: scanJobId },
-            data: { status: 'processing', progress: 10, stage: 'ai-analysis' },
+            data: { status: 'processing', progress: 5, stage: 'queue-upload' },
           })
           await publishJobUpdate(scanJobId, {
-            progress: 10,
-            stage: 'ai-analysis',
+            progress: 5,
+            stage: 'queue-upload',
           })
 
           const buffer = Buffer.from(fileData, 'base64')
-
-          // Run Gemini AI analysis — full OCR + document classification in one pass
-          let smartFileName = originalName // fallback to original name
-          try {
-            const { analyzeDocument, buildSmartFileName } =
-              await import('@/lib/gemini-service')
-            const analysis = await analyzeDocument(buffer, originalName)
-
-            // Build smart file name: DocType_ClientName_DateIssued.ext
-            smartFileName = buildSmartFileName(analysis, originalName)
-
-            await prisma.scanJobs.update({
-              where: { id: scanJobId },
-              data: {
-                isRfe: analysis.isRfe,
-                aiAnalysis: analysis as any,
-                aiConfidence: analysis.confidence,
-                renamedFileName: smartFileName,
-                progress: 20,
-              },
-            })
-            await publishJobUpdate(scanJobId, {
-              progress: 20,
-              stage: 'ai-analysis',
-            })
-            console.log(
-              `[Worker] AI analysis for ${originalName}: isRfe=${analysis.isRfe}, docType=${analysis.documentType}, client=${analysis.clientName}, date=${analysis.dateIssued}, confidence=${analysis.confidence} → renamed to "${smartFileName}"`,
-            )
-          } catch (aiError) {
-            console.warn(
-              '[Worker] Gemini AI analysis failed, continuing with original name:',
-              aiError,
-            )
-          }
-
-          // Dropbox folder format: clientName_clientId (e.g. "John_Smith_25146161")
-          const folderName = clientName
-            ? `${clientName.replace(/\s+/g, '_')}_${selectedClient}`
-            : selectedClient || 'unknown_client'
-          await prisma.scanJobs.update({
-            where: { id: scanJobId },
-            data: { progress: 30, stage: 'dropbox' },
-          })
-          await publishJobUpdate(scanJobId, { progress: 30, stage: 'dropbox' })
-
-          // Upload to Dropbox using the AI-renamed file name
           const dropbox = await createDropboxService()
           if (!dropbox) {
             throw new Error(
@@ -104,23 +60,123 @@ export async function ensureWorkersStarted() {
             )
           }
 
-          const { path: dropboxPath } = await dropbox.uploadFile(
-            folderName,
+          // Upload to /Scans/Queue with scanJobId prefix so we can find it for resume
+          const queuePath = await dropbox.uploadToQueue(
+            scanJobId,
             buffer,
+            originalName,
+          )
+
+          await prisma.scanJobs.update({
+            where: { id: scanJobId },
+            data: { queueFilePath: queuePath, progress: 15 },
+          })
+          await publishJobUpdate(scanJobId, { progress: 15 })
+          console.log(`[Worker] File staged in Queue: ${queuePath}`)
+
+          // ── Step 2: AI OCR — hard fail, no fallback ──
+          await prisma.scanJobs.update({
+            where: { id: scanJobId },
+            data: { progress: 20, stage: 'ai-analysis' },
+          })
+          await publishJobUpdate(scanJobId, {
+            progress: 20,
+            stage: 'ai-analysis',
+          })
+
+          const { analyzeDocument, buildSmartFileName, GeminiAnalysisError } =
+            await import('@/lib/gemini-service')
+
+          let analysis
+          let smartFileName: string
+          try {
+            analysis = await analyzeDocument(buffer, originalName)
+            smartFileName = buildSmartFileName(analysis, originalName)
+          } catch (aiError) {
+            // Log structured Gemini error details for debugging
+            if (aiError instanceof GeminiAnalysisError) {
+              console.error(
+                `[Worker] ❌ GEMINI HARD FAIL for ${originalName}:`,
+                {
+                  message: aiError.message,
+                  statusCode: aiError.statusCode,
+                  geminiResponse: aiError.geminiResponse,
+                  attempts: aiError.attempts,
+                },
+              )
+              await prisma.scanJobs.update({
+                where: { id: scanJobId },
+                data: {
+                  status: 'failed',
+                  stage: 'ai-analysis',
+                  errorMessage: `Gemini AI failed (${aiError.statusCode ? `HTTP ${aiError.statusCode}` : 'error'}): ${aiError.message}`,
+                  aiAnalysis: {
+                    error: aiError.message,
+                    statusCode: aiError.statusCode,
+                    geminiResponse: aiError.geminiResponse,
+                    attempts: aiError.attempts,
+                    failedAt: new Date().toISOString(),
+                  } as any,
+                  retryCount: { increment: 1 },
+                },
+              })
+            }
+            // Re-throw — the file stays in /Scans/Queue for resume
+            throw aiError
+          }
+
+          await prisma.scanJobs.update({
+            where: { id: scanJobId },
+            data: {
+              isRfe: analysis.isRfe,
+              aiAnalysis: analysis as any,
+              aiConfidence: analysis.confidence,
+              renamedFileName: smartFileName,
+              progress: 40,
+            },
+          })
+          await publishJobUpdate(scanJobId, {
+            progress: 40,
+            stage: 'ai-analysis',
+          })
+          console.log(
+            `[Worker] AI analysis for ${originalName}: isRfe=${analysis.isRfe}, docType=${analysis.documentType}, client=${analysis.clientName}, date=${analysis.dateIssued}, confidence=${analysis.confidence} → renamed to "${smartFileName}"`,
+          )
+
+          // ── Step 3: Move from Queue → Client folder in Dropbox ──
+          await prisma.scanJobs.update({
+            where: { id: scanJobId },
+            data: { progress: 50, stage: 'dropbox' },
+          })
+          await publishJobUpdate(scanJobId, { progress: 50, stage: 'dropbox' })
+
+          // Dropbox folder format: ClientName_DocketwiseId (e.g. "John_Smith_25146161")
+          const folderName = clientName
+            ? `${clientName.replace(/\s+/g, '_')}_${selectedClient}`
+            : selectedClient || 'unknown_client'
+
+          const dropboxPath = await dropbox.moveFile(
+            queuePath,
+            folderName,
             smartFileName,
           )
 
           await prisma.scanJobs.update({
             where: { id: scanJobId },
-            data: { progress: 60, dropboxPath },
+            data: {
+              dropboxPath,
+              queueFilePath: null, // Cleared — file has been moved out of Queue
+              progress: 65,
+            },
           })
           await publishJobUpdate(scanJobId, {
-            progress: 60,
-            stage: 'docketwise',
+            progress: 65,
+            stage: 'dropbox',
             dropboxPath,
           })
+          console.log(`[Worker] File moved to client folder: ${dropboxPath}`)
 
-          // Create file metadata record with the renamed file name
+          // ── Step 4: Create file metadata ──
           await prisma.fileMetadata.create({
             data: {
               scanJobId,
@@ -132,33 +188,126 @@ export async function ensureWorkersStarted() {
             },
           })
 
-          // Enqueue Docketwise upload job with the renamed file name
-          const docketwiseQueue = await getDocketwiseQueue()
-          await docketwiseQueue.add('upload-document', {
-            scanJobId,
-            userId,
-            filePath: dropboxPath,
-            clientName: clientName || selectedClient || 'unknown',
-            clientId: selectedClient,
-            matterId: selectedMatter,
-            matterName: matterName || selectedMatter,
-            fileName: smartFileName,
-            fileData,
-          })
+          // ── Step 5: Conditional Docketwise upload ──
+          if (uploadToDocketwise && selectedClient && selectedMatter) {
+            const docketwiseQueue = await getDocketwiseQueue()
+            await docketwiseQueue.add('upload-document', {
+              scanJobId,
+              userId,
+              filePath: dropboxPath,
+              clientName: clientName || selectedClient || 'unknown',
+              clientId: selectedClient,
+              matterId: selectedMatter,
+              matterName: matterName || selectedMatter,
+              fileName: smartFileName,
+              fileData,
+            })
+          } else {
+            // Skip Docketwise — complete the job here
+            console.log(
+              `[Worker] Docketwise skipped for ${originalName} (uploadToDocketwise=${uploadToDocketwise})`,
+            )
+
+            await prisma.scanJobs.update({
+              where: { id: scanJobId },
+              data: {
+                docketwiseDocId: 'N/A',
+                progress: 90,
+                stage: 'email',
+              },
+            })
+            await publishJobUpdate(scanJobId, {
+              progress: 90,
+              stage: 'email',
+            })
+
+            // Send email notification
+            const emailSettings = await prisma.emailSettings.findFirst({
+              where: { userId },
+            })
+
+            const emailLog = await prisma.emailLog.create({
+              data: {
+                scanJobId,
+                recipients: emailSettings?.recipients || [],
+                subject: `Document Uploaded: ${smartFileName}`,
+                status:
+                  !emailSettings?.notifyOnUpload ||
+                  !emailSettings.recipients.length
+                    ? 'failed'
+                    : 'pending',
+                errorMessage:
+                  !emailSettings?.notifyOnUpload ||
+                  !emailSettings.recipients.length
+                    ? 'No recipients configured'
+                    : undefined,
+                fileName: smartFileName,
+                fileSize: job.data.fileSize,
+                fileType: mimeType,
+                clientName: clientName || selectedClient || undefined,
+                matterName: matterName || selectedMatter || undefined,
+                template: 'upload-success',
+              },
+            })
+
+            if (
+              emailSettings?.notifyOnUpload &&
+              emailSettings.recipients.length > 0
+            ) {
+              const emailQueue = await getEmailQueue()
+              await emailQueue.add('send-notification', {
+                emailLogId: emailLog.id,
+                to: emailSettings.recipients,
+                subject: `Document Uploaded: ${smartFileName}`,
+                template: 'upload-success' as const,
+                data: {
+                  clientName: clientName || selectedClient || 'N/A',
+                  matterName: matterName || selectedMatter || 'N/A',
+                  fileName: smartFileName,
+                  fileSize: job.data.fileSize || 0,
+                  fileType: mimeType || 'Unknown',
+                  dropboxPath,
+                  docketwiseDocId: 'N/A (skipped)',
+                },
+              })
+            }
+
+            await prisma.scanJobs.update({
+              where: { id: scanJobId },
+              data: {
+                status: 'completed',
+                progress: 100,
+                stage: 'completed',
+                errorMessage: null,
+              },
+            })
+            await publishJobUpdate(scanJobId, {
+              progress: 100,
+              stage: 'completed',
+              status: 'completed',
+            })
+          }
 
           return { success: true, dropboxPath, folderName, smartFileName }
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : 'Unknown error'
 
-          await prisma.scanJobs.update({
+          // Only update status if not already marked failed by AI handler above
+          const currentJob = await prisma.scanJobs.findUnique({
             where: { id: scanJobId },
-            data: {
-              status: 'failed',
-              errorMessage,
-              retryCount: { increment: 1 },
-            },
+            select: { status: true },
           })
+          if (currentJob?.status !== 'failed') {
+            await prisma.scanJobs.update({
+              where: { id: scanJobId },
+              data: {
+                status: 'failed',
+                errorMessage,
+                retryCount: { increment: 1 },
+              },
+            })
+          }
           await publishJobUpdate(scanJobId, {
             status: 'failed',
             error: errorMessage,
@@ -168,12 +317,11 @@ export async function ensureWorkersStarted() {
             where: { userId },
           })
 
-          // Always create an email log for error notifications
           const emailLog = await prisma.emailLog.create({
             data: {
               scanJobId,
               recipients: emailSettings?.recipients || [],
-              subject: `File Upload Failed: ${originalName}`,
+              subject: `File Processing Failed: ${originalName}`,
               status:
                 !emailSettings?.notifyOnError ||
                 !emailSettings.recipients.length
@@ -201,7 +349,7 @@ export async function ensureWorkersStarted() {
             await emailQueue.add('send-notification', {
               emailLogId: emailLog.id,
               to: emailSettings.recipients,
-              subject: `File Upload Failed: ${originalName}`,
+              subject: `File Processing Failed: ${originalName}`,
               template: 'upload-error' as const,
               data: {
                 fileName: originalName,

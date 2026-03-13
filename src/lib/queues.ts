@@ -15,8 +15,7 @@ async function getQueue(name: string, opts: Record<string, any>) {
 export async function getFileQueue() {
   if (!_fileQueue) {
     _fileQueue = await getQueue('file-processing', {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 5000 },
+      attempts: 1, // No auto-retry — Gemini retries 3x internally, user resumes manually
       removeOnComplete: 100,
       removeOnFail: 50,
     })
@@ -60,7 +59,10 @@ export interface FileJobData {
   fileSize: number
   contentHash: string
   selectedClient?: string
+  clientName?: string
   selectedMatter?: string
+  matterName?: string
+  uploadToDocketwise: boolean
 }
 
 export interface DocketwiseJobData {
@@ -68,7 +70,9 @@ export interface DocketwiseJobData {
   userId: string
   filePath: string
   clientName: string
+  clientId: string
   matterId?: string
+  matterName?: string
   fileName: string
   fileData?: string // base64 if needed
 }

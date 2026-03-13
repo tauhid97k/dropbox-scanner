@@ -196,15 +196,21 @@ model ScanJobs {
   
     // Client/Matter assignment
     suggestedClient String?
-    selectedClient  String?
+    selectedClient  String?         // Docketwise contact ID
+    clientName      String?         // Human-readable client name
     suggestedMatter String?
-    selectedMatter  String?
+    selectedMatter  String?         // Docketwise matter ID
+    matterName      String?         // Human-readable matter name
     aiConfidence    Float?
   
     // AI Analysis
     isRfe           Boolean         @default(false)
     aiAnalysis      Json?           // Full Gemini analysis result
     renamedFileName String?         // AI-generated smart file name (DocType_Client_Date.ext)
+
+    // Pipeline flags
+    uploadToDocketwise Boolean      @default(true)  // User checkbox — upload to Docketwise?
+    queueFilePath      String?                       // Dropbox /Scans/Queue path for resume
 
     // Results
     dropboxPath     String?

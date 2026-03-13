@@ -24,24 +24,85 @@ export class DropboxService {
     }
   }
 
-  // Upload file to client folder
+  // Upload file to /Scans/Queue for staging (resume-safe)
+  async uploadToQueue(
+    scanJobId: string,
+    fileData: Buffer,
+    originalFileName: string,
+  ): Promise<string> {
+    const folder = await this.getOrCreateFolder('/Scans/Queue')
+    const sanitized = originalFileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const queuePath = `${folder}/${scanJobId}_${sanitized}`
+
+    await this.client.filesUpload({
+      path: queuePath,
+      contents: fileData,
+      mode: { '.tag': 'overwrite' },
+    })
+
+    return queuePath
+  }
+
+  // Move a file from one path to another (Queue → client folder)
+  async moveFile(
+    fromPath: string,
+    toFolder: string,
+    newFileName: string,
+  ): Promise<string> {
+    const folder = await this.getOrCreateClientFolder(toFolder)
+    const sanitized = newFileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const toPath = `${folder}/${sanitized}`
+
+    const result = await this.client.filesMoveV2({
+      from_path: fromPath,
+      to_path: toPath,
+      autorename: true,
+    })
+
+    // Return actual path (autorename may change it)
+    const metadata = result.result.metadata as { path_display?: string }
+    return metadata.path_display || toPath
+  }
+
+  // Upload file directly to client folder (legacy/direct path)
   async uploadFile(
     clientName: string,
     fileData: Buffer,
-    originalFilename: string,
+    fileName: string,
   ): Promise<{ path: string; folder: string }> {
     const folder = await this.getOrCreateClientFolder(clientName)
-    const newFilename = this.generateTimestampedFilename(originalFilename)
-    const filePath = `${folder}/${newFilename}`
+    const sanitized = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const filePath = `${folder}/${sanitized}`
 
-    await this.client.filesUpload({
+    const result = await this.client.filesUpload({
       path: filePath,
       contents: fileData,
       mode: { '.tag': 'add' },
       autorename: true,
     })
 
-    return { path: filePath, folder }
+    // Return actual path (autorename may change it)
+    return { path: result.result.path_display || filePath, folder }
+  }
+
+  // Get or create any arbitrary folder
+  async getOrCreateFolder(folderPath: string): Promise<string> {
+    try {
+      await this.client.filesGetMetadata({ path: folderPath })
+      return folderPath
+    } catch {
+      await this.client.filesCreateFolderV2({ path: folderPath })
+      return folderPath
+    }
+  }
+
+  // Delete a file from Queue after successful move
+  async deleteQueueFile(path: string): Promise<void> {
+    try {
+      await this.client.filesDeleteV2({ path })
+    } catch {
+      // Ignore — file may already have been moved/deleted
+    }
   }
 
   // List all client folders
@@ -128,14 +189,6 @@ export class DropboxService {
       .replace(/[^a-zA-Z0-9_\s-]/g, '')
       .replace(/\s+/g, '_')
       .substring(0, 80)
-  }
-
-  // Generate timestamped filename
-  private generateTimestampedFilename(originalName: string): string {
-    const now = new Date()
-    const timestamp = now.toISOString().replace(/[:.]/g, '-').substring(0, 19)
-    const sanitized = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
-    return `${timestamp}_${sanitized}`
   }
 }
 

@@ -24,6 +24,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
   const [clientName, setClientName] = useState('')
   const [matterId, setMatterId] = useState('')
   const [matterName, setMatterName] = useState('')
+  const [uploadToDocketwise, setUploadToDocketwise] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [matterKey, setMatterKey] = useState(0)
@@ -71,8 +72,8 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
       return
     }
 
-    if (!matterId) {
-      toast.error('Please select a matter')
+    if (uploadToDocketwise && !matterId) {
+      toast.error('Please select a matter for Docketwise upload')
       return
     }
 
@@ -86,6 +87,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
     const clientLabel = clientName
     const matter = matterId
     const matterLabel = matterName
+    const docketwise = uploadToDocketwise
 
     // Reset state and close modal right away
     setSelectedFiles([])
@@ -93,6 +95,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
     setClientName('')
     setMatterId('')
     setMatterName('')
+    setUploadToDocketwise(true)
     setIsProcessing(false)
     onOpenChange(false)
 
@@ -104,8 +107,10 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
         formData.append('file', file)
         formData.append('selectedClient', client)
         formData.append('clientName', clientLabel)
-        formData.append('selectedMatter', matter)
-        formData.append('matterName', matterLabel)
+        formData.append('uploadToDocketwise', String(docketwise))
+        if (docketwise && matter) formData.append('selectedMatter', matter)
+        if (docketwise && matterLabel)
+          formData.append('matterName', matterLabel)
 
         const response = await fetch('/api/upload', {
           method: 'POST',
@@ -227,8 +232,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
         <DialogHeader>
           <DialogTitle>Upload Documents</DialogTitle>
           <DialogDescription>
-            Select files and assign them to a contact and matter before
-            processing
+            Select files and assign a contact for processing
           </DialogDescription>
         </DialogHeader>
 
@@ -315,26 +319,46 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                 fetchOptions={fetchClients}
               />
             </Field>
-            <Field>
-              <FieldLabel>Matter *</FieldLabel>
-              <AdvancedSelect
-                key={matterKey}
-                value={matterId}
-                onValueChange={setMatterId}
-                onOptionSelect={(opt) => setMatterName(opt?.label || '')}
-                placeholder={
-                  clientId ? 'Select matter...' : 'Select a contact first...'
-                }
-                searchPlaceholder="Search matters..."
-                emptyText={
-                  clientId
-                    ? 'No matters found for this contact.'
-                    : 'Select a contact first.'
-                }
-                fetchOptions={fetchMatters}
-                disabled={!clientId}
+
+            {/* Upload to Docketwise checkbox */}
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={uploadToDocketwise}
+                onChange={(e) => {
+                  setUploadToDocketwise(e.target.checked)
+                  if (!e.target.checked) {
+                    setMatterId('')
+                    setMatterName('')
+                  }
+                }}
+                className="h-4 w-4 rounded border-input accent-primary"
               />
-            </Field>
+              <span className="text-sm font-medium">Upload to Docketwise</span>
+            </label>
+
+            {uploadToDocketwise && (
+              <Field>
+                <FieldLabel>Matter *</FieldLabel>
+                <AdvancedSelect
+                  key={matterKey}
+                  value={matterId}
+                  onValueChange={setMatterId}
+                  onOptionSelect={(opt) => setMatterName(opt?.label || '')}
+                  placeholder={
+                    clientId ? 'Select matter...' : 'Select a contact first...'
+                  }
+                  searchPlaceholder="Search matters..."
+                  emptyText={
+                    clientId
+                      ? 'No matters found for this contact.'
+                      : 'Select a contact first.'
+                  }
+                  fetchOptions={fetchMatters}
+                  disabled={!clientId}
+                />
+              </Field>
+            )}
           </div>
 
           {/* Actions */}

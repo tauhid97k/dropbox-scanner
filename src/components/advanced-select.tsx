@@ -57,7 +57,7 @@ export function AdvancedSelect({
   const [hasMore, setHasMore] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const observerTarget = useRef<HTMLDivElement | null>(null)
+  const observerRef = useRef<IntersectionObserver | null>(null)
   const debounceTimer = useRef<NodeJS.Timeout | null>(null)
   const pageRef = useRef(1)
   const searchRef = useRef('')
@@ -111,9 +111,10 @@ export function AdvancedSelect({
     }
   }, [search, loadOptions])
 
-  // Intersection Observer for infinite scroll — stable, no state deps
+  // Keep the observer instance in sync with loadOptions
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    observerRef.current?.disconnect()
+    observerRef.current = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting && !loadingRef.current) {
           const nextPage = pageRef.current + 1
@@ -122,18 +123,20 @@ export function AdvancedSelect({
       },
       { threshold: 0.1 },
     )
-
-    const currentTarget = observerTarget.current
-    if (currentTarget) {
-      observer.observe(currentTarget)
-    }
-
     return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget)
-      }
+      observerRef.current?.disconnect()
     }
   }, [loadOptions])
+
+  // Callback ref — attaches/detaches observer when the sentinel div mounts/unmounts
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    // Disconnect from any previous node
+    observerRef.current?.disconnect()
+    // Observe the new node if it exists
+    if (node) {
+      observerRef.current?.observe(node)
+    }
+  }, [])
 
   // Client-side filtering as fallback (API filter may not match all cases)
   const filteredOptions = useMemo(() => {
@@ -234,7 +237,7 @@ export function AdvancedSelect({
                     })}
                     {hasMore && (
                       <div
-                        ref={observerTarget}
+                        ref={sentinelRef}
                         className="flex items-center justify-center gap-2 py-2"
                       >
                         {isLoadingMore && (

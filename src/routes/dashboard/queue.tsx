@@ -21,6 +21,7 @@ export const Route = createFileRoute('/dashboard/queue')({
 interface QueueJob {
   id: string
   fileName: string
+  originalName?: string
   clientName: string
   matterName: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
@@ -30,6 +31,7 @@ interface QueueJob {
   errorMessage?: string | null
   dropboxDone: boolean
   docketwiseDone: boolean
+  docketwiseSkipped?: boolean
 }
 
 function QueuePage() {
@@ -56,10 +58,12 @@ function QueuePage() {
   const getStageLabel = (stage: string) => {
     const labels: Record<string, string> = {
       upload: 'Uploading',
+      'queue-upload': 'Staging in Queue',
       'ai-analysis': 'AI Analysis',
-      dropbox: 'Dropbox Upload',
+      dropbox: 'Moving to Client Folder',
       docketwise: 'Docketwise Sync',
       email: 'Sending Email',
+      completed: 'Completed',
     }
     return labels[stage] || stage
   }
@@ -158,7 +162,14 @@ function QueuePage() {
                     <span className="flex items-center gap-1.5">
                       <Cloud className="h-4 w-4" />
                       Docketwise:
-                      {job.docketwiseDone ? (
+                      {job.docketwiseSkipped ? (
+                        <Badge
+                          variant="outline"
+                          className="px-1.5 py-0 text-xs"
+                        >
+                          N/A
+                        </Badge>
+                      ) : job.docketwiseDone ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       ) : job.status === 'failed' &&
                         job.dropboxDone &&

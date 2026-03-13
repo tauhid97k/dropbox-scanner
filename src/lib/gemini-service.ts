@@ -63,7 +63,7 @@ function toTitleHyphen(value: string): string {
     .replace(/[^a-zA-Z0-9\s_-]/g, '')
     .split(/[\s_-]+/)
     .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join('-')
     .substring(0, 60)
 }
@@ -82,25 +82,45 @@ function formatDateMMDDYY(dateStr: string): string {
 }
 
 /**
+ * Custom error for Gemini failures — includes structured details for logging.
+ */
+export class GeminiAnalysisError extends Error {
+  public readonly statusCode: number | null
+  public readonly geminiResponse: string | null
+  public readonly attempts: number
+
+  constructor(
+    message: string,
+    opts: {
+      statusCode?: number | null
+      geminiResponse?: string | null
+      attempts: number
+    },
+  ) {
+    super(message)
+    this.name = 'GeminiAnalysisError'
+    this.statusCode = opts.statusCode ?? null
+    this.geminiResponse = opts.geminiResponse ?? null
+    this.attempts = opts.attempts
+  }
+}
+
+/**
  * Analyze a document using Gemini Vision to detect RFEs, classify document type,
  * extract client name, date issued, and content summary — all in one OCR pass.
- * Sends the file directly to Gemini's multimodal API.
+ *
+ * HARD FAIL: This function throws GeminiAnalysisError if analysis fails after
+ * 3 retries. There is NO fallback — the caller must handle the failure.
  */
 export async function analyzeDocument(
   fileData: Buffer,
   fileName: string,
 ): Promise<DocumentAnalysis> {
   if (!GEMINI_API_KEY) {
-    console.warn('[GEMINI] API key not configured — skipping AI analysis')
-    return {
-      isRfe: false,
-      documentType: null,
-      clientName: null,
-      dateIssued: null,
-      confidence: 0,
-      contentSummary: null,
-      summary: null,
-    }
+    throw new GeminiAnalysisError(
+      'GEMINI_API_KEY is not configured. Set it in your environment variables.',
+      { attempts: 0 },
+    )
   }
 
   // Determine MIME type from extension
@@ -174,72 +194,164 @@ RULES:
 - If the document is not immigration-related, still classify it with a sensible short label.`
 
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
-  const modelsToTry = [MODEL_NAME, 'gemini-2.0-flash', 'gemini-1.5-flash']
   const maxRetries = 3
+  let lastError: string | null = null
+  let lastStatusCode: number | null = null
+  let lastRawResponse: string | null = null
 
-  for (const modelId of modelsToTry) {
-    const model = genAI.getGenerativeModel({ model: modelId })
+  // HTTP status codes that are safe to retry (transient issues)
+  const RETRYABLE_STATUS_CODES = new Set([429, 500, 503])
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const result = await model.generateContent([
-          prompt,
-          {
-            inlineData: {
-              mimeType,
-              data: fileData.toString('base64'),
-            },
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME })
+      const result = await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            mimeType,
+            data: fileData.toString('base64'),
           },
-        ])
+        },
+      ])
 
-        const text = result.response.text()
-        if (!text) continue
-
-        // Parse JSON from response (handle markdown code blocks)
-        const jsonMatch = text.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) continue
-
-        const parsed = JSON.parse(jsonMatch[0])
-        return {
-          isRfe: Boolean(parsed.is_rfe),
-          documentType: parsed.document_type || null,
-          clientName: parsed.client_name || null,
-          dateIssued: parsed.date_issued || null,
-          confidence:
-            typeof parsed.confidence === 'number' ? parsed.confidence : 0,
-          contentSummary: parsed.content_summary || null,
-          summary: parsed.content_summary || null,
+      const text = result.response.text()
+      if (!text) {
+        // Empty response — retryable (model hiccup)
+        lastRawResponse = '(empty response)'
+        console.warn(
+          `[GEMINI] Empty response on attempt ${attempt}/${maxRetries}`,
+        )
+        if (attempt < maxRetries) {
+          await delay(3000 * attempt)
+          continue
         }
-      } catch (error) {
-        const errorStr = String(error)
-        if (
-          errorStr.includes('429') ||
-          errorStr.toLowerCase().includes('quota')
-        ) {
-          const waitMs = 5000 * Math.pow(2, attempt) + Math.random() * 2000
-          console.warn(
-            `[GEMINI] Rate limited on ${modelId}, waiting ${Math.round(waitMs)}ms (attempt ${attempt + 1}/${maxRetries})`,
+        throw new GeminiAnalysisError(
+          `Gemini returned empty response after ${maxRetries} attempts`,
+          { attempts: maxRetries, geminiResponse: lastRawResponse },
+        )
+      }
+
+      // Parse JSON from response (handle markdown code blocks)
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        // Bad format — retryable (model occasionally returns non-JSON)
+        lastRawResponse = text.substring(0, 500)
+        console.warn(
+          `[GEMINI] No JSON found in response on attempt ${attempt}/${maxRetries}:`,
+          lastRawResponse,
+        )
+        if (attempt < maxRetries) {
+          await delay(3000 * attempt)
+          continue
+        }
+        throw new GeminiAnalysisError(
+          `Gemini response did not contain valid JSON after ${maxRetries} attempts`,
+          { attempts: maxRetries, geminiResponse: lastRawResponse },
+        )
+      }
+
+      const parsed = JSON.parse(jsonMatch[0])
+      return {
+        isRfe: Boolean(parsed.is_rfe),
+        documentType: parsed.document_type || null,
+        clientName: parsed.client_name || null,
+        dateIssued: parsed.date_issued || null,
+        confidence:
+          typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+        contentSummary: parsed.content_summary || null,
+        summary: parsed.content_summary || null,
+      }
+    } catch (error: unknown) {
+      // ── Already our custom error — re-throw immediately ──
+      if (error instanceof GeminiAnalysisError) throw error
+
+      const err = error as Error & {
+        status?: number
+        statusText?: string
+        errorDetails?: Array<{ reason?: string; domain?: string }>
+      }
+      const errorMsg = err.message || String(error)
+      const errorName = err.name || ''
+
+      // ── SDK: Bad input (wrong params, bad base64) — PERMANENT, no retry ──
+      // GoogleGenerativeAIRequestInputError has name containing "RequestInput"
+      if (errorName.includes('RequestInput')) {
+        console.error(
+          `[GEMINI] ❌ PERMANENT INPUT ERROR (no retry): ${errorMsg}`,
+        )
+        throw new GeminiAnalysisError(
+          `Gemini request input error: ${errorMsg}`,
+          { attempts: attempt, geminiResponse: null },
+        )
+      }
+
+      // ── SDK: HTTP/fetch error — has .status property ──
+      // GoogleGenerativeAIFetchError sets .status, .statusText, .errorDetails
+      if (typeof err.status === 'number') {
+        const status = err.status
+        lastStatusCode = status
+        lastError = errorMsg
+        lastRawResponse = err.statusText || errorMsg.substring(0, 500)
+
+        // Permanent HTTP errors — stop immediately, no point retrying
+        // 400 = bad request, 403 = key blocked/forbidden, 404 = model not found
+        if (!RETRYABLE_STATUS_CODES.has(status)) {
+          console.error(
+            `[GEMINI] ❌ PERMANENT HTTP ${status} (no retry): ${errorMsg}`,
+            err.errorDetails || '',
           )
+          throw new GeminiAnalysisError(
+            `Gemini API returned HTTP ${status}: ${err.statusText || errorMsg}`,
+            {
+              statusCode: status,
+              geminiResponse: lastRawResponse,
+              attempts: attempt,
+            },
+          )
+        }
+
+        // Retryable HTTP errors (429 rate limit, 500 internal, 503 overloaded)
+        console.warn(
+          `[GEMINI] ⚠️ HTTP ${status} on attempt ${attempt}/${maxRetries}: ${errorMsg}`,
+        )
+
+        if (attempt < maxRetries) {
+          // 429: longer backoff (rate limit). 503/500: shorter backoff (transient).
+          const baseMs = status === 429 ? 10000 : 5000
+          const waitMs =
+            baseMs * Math.pow(2, attempt - 1) + Math.random() * 2000
+          console.warn(`[GEMINI] Retrying in ${Math.round(waitMs)}ms...`)
           await delay(waitMs)
           continue
         }
-        console.error(
-          `[GEMINI] Error with ${modelId} attempt ${attempt + 1}:`,
-          error,
+        // Fall through to exhausted retries below
+      } else {
+        // ── Non-SDK error (network timeout, JSON parse error, etc.) — retryable ──
+        lastError = errorMsg
+        lastRawResponse = errorMsg.substring(0, 500)
+
+        console.warn(
+          `[GEMINI] ⚠️ Error on attempt ${attempt}/${maxRetries}: ${errorMsg}`,
         )
-        break // Try next model
+
+        if (attempt < maxRetries) {
+          const waitMs = 5000 * Math.pow(2, attempt - 1) + Math.random() * 2000
+          console.warn(`[GEMINI] Retrying in ${Math.round(waitMs)}ms...`)
+          await delay(waitMs)
+          continue
+        }
       }
     }
   }
 
-  console.warn('[GEMINI] All models/retries exhausted — returning default')
-  return {
-    isRfe: false,
-    documentType: null,
-    clientName: null,
-    dateIssued: null,
-    confidence: 0,
-    contentSummary: null,
-    summary: null,
-  }
+  // All retries exhausted — hard fail
+  throw new GeminiAnalysisError(
+    `Gemini AI analysis failed after ${maxRetries} attempts. Last error: ${lastError || 'Unknown'}`,
+    {
+      statusCode: lastStatusCode,
+      geminiResponse: lastRawResponse,
+      attempts: maxRetries,
+    },
+  )
 }

@@ -32,12 +32,36 @@ export const Route = createFileRoute('/api/upload')({
           const clientName = formData.get('clientName') as string | null
           const selectedMatter = formData.get('selectedMatter') as string | null
           const matterName = formData.get('matterName') as string | null
+          const uploadToDocketwise =
+            formData.get('uploadToDocketwise') !== 'false' // default true
 
           if (!file) {
             return new Response(JSON.stringify({ error: 'No file provided' }), {
               status: 400,
               headers: { 'Content-Type': 'application/json' },
             })
+          }
+
+          if (!selectedClient || !clientName) {
+            return new Response(
+              JSON.stringify({ error: 'Client selection is required' }),
+              {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            )
+          }
+
+          if (uploadToDocketwise && !selectedMatter) {
+            return new Response(
+              JSON.stringify({
+                error: 'Matter selection is required for Docketwise upload',
+              }),
+              {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            )
           }
 
           // Convert file to buffer
@@ -86,8 +110,11 @@ export const Route = createFileRoute('/api/upload')({
               status: 'pending',
               progress: 0,
               stage: 'upload',
-              selectedClient: clientName || selectedClient || undefined,
-              selectedMatter: matterName || selectedMatter || undefined,
+              selectedClient: selectedClient || undefined,
+              clientName: clientName || undefined,
+              selectedMatter: selectedMatter || undefined,
+              matterName: matterName || undefined,
+              uploadToDocketwise,
             },
           })
 
@@ -108,6 +135,7 @@ export const Route = createFileRoute('/api/upload')({
             clientName: clientName || undefined,
             selectedMatter: selectedMatter || undefined,
             matterName: matterName || undefined,
+            uploadToDocketwise,
           })
 
           return new Response(

@@ -24,8 +24,11 @@ export const Route = createFileRoute('/api/queue')({
             select: {
               id: true,
               originalName: true,
+              renamedFileName: true,
               selectedClient: true,
+              clientName: true,
               selectedMatter: true,
+              matterName: true,
               status: true,
               stage: true,
               progress: true,
@@ -38,16 +41,19 @@ export const Route = createFileRoute('/api/queue')({
 
           const mapped = jobs.map((job) => ({
             id: job.id,
-            fileName: job.originalName,
-            clientName: job.selectedClient || 'Unassigned',
-            matterName: job.selectedMatter || 'Unassigned',
+            fileName: job.renamedFileName || job.originalName,
+            originalName: job.originalName,
+            clientName: job.clientName || job.selectedClient || 'Unassigned',
+            matterName: job.matterName || job.selectedMatter || 'Unassigned',
             status: job.status,
             stage: job.stage || 'upload',
             progress: job.progress || 0,
             createdAt: job.createdAt.toISOString(),
             errorMessage: job.errorMessage,
             dropboxDone: !!job.dropboxPath,
-            docketwiseDone: !!job.docketwiseDocId,
+            docketwiseDone:
+              !!job.docketwiseDocId && job.docketwiseDocId !== 'N/A',
+            docketwiseSkipped: job.docketwiseDocId === 'N/A',
           }))
 
           return new Response(JSON.stringify({ jobs: mapped }), {
