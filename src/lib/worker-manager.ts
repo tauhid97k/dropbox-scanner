@@ -150,10 +150,30 @@ export async function ensureWorkersStarted() {
           })
           await publishJobUpdate(scanJobId, { progress: 50, stage: 'dropbox' })
 
-          // Dropbox folder format: ClientName_DocketwiseId (e.g. "John_Smith_25146161")
-          const folderName = clientName
-            ? `${clientName.replace(/\s+/g, '_')}_${selectedClient}`
-            : selectedClient || 'unknown_client'
+          // Look up Contact from DB for folder naming + Docketwise clientId
+          const contact = selectedClient
+            ? await prisma.contacts.findUnique({
+                where: { id: selectedClient },
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  docketwiseId: true,
+                },
+              })
+            : null
+
+          // Folder format: Name_DocketwiseId or Name_First6ULID
+          // e.g. "John_Smith_25146161" (Docketwise) or "Jane_Doe_01JQ8R" (manual)
+          const contactDisplayName =
+            clientName ||
+            (contact
+              ? [contact.firstName, contact.lastName].filter(Boolean).join(' ')
+              : 'unknown_client')
+          const folderSuffix = contact
+            ? String(contact.docketwiseId ?? contact.id.substring(0, 6))
+            : selectedClient?.substring(0, 6) || 'unknown'
+          const folderName = `${contactDisplayName.replace(/\s+/g, '_')}_${folderSuffix}`
 
           const dropboxPath = await dropbox.moveFile(
             queuePath,
@@ -181,7 +201,7 @@ export async function ensureWorkersStarted() {
             data: {
               scanJobId,
               dropboxPath,
-              clientName: clientName || selectedClient || 'unknown',
+              clientName: contactDisplayName,
               fileName: smartFileName,
               fileType: mimeType,
               uploadedBy: userId,
@@ -189,14 +209,18 @@ export async function ensureWorkersStarted() {
           })
 
           // ── Step 5: Conditional Docketwise upload ──
-          if (uploadToDocketwise && selectedClient && selectedMatter) {
+          const docketwiseClientId = contact?.docketwiseId
+            ? String(contact.docketwiseId)
+            : null
+
+          if (uploadToDocketwise && docketwiseClientId && selectedMatter) {
             const docketwiseQueue = await getDocketwiseQueue()
             await docketwiseQueue.add('upload-document', {
               scanJobId,
               userId,
               filePath: dropboxPath,
-              clientName: clientName || selectedClient || 'unknown',
-              clientId: selectedClient,
+              clientName: contactDisplayName,
+              clientId: docketwiseClientId,
               matterId: selectedMatter,
               matterName: matterName || selectedMatter,
               fileName: smartFileName,

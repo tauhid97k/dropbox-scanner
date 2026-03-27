@@ -22,6 +22,9 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
   const [selectedFiles, setSelectedFiles] = useState<Array<File>>([])
   const [clientId, setClientId] = useState('')
   const [clientName, setClientName] = useState('')
+  const [clientDocketwiseId, setClientDocketwiseId] = useState<number | null>(
+    null,
+  )
   const [matterId, setMatterId] = useState('')
   const [matterName, setMatterName] = useState('')
   const [uploadToDocketwise, setUploadToDocketwise] = useState(true)
@@ -93,6 +96,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
     setSelectedFiles([])
     setClientId('')
     setClientName('')
+    setClientDocketwiseId(null)
     setMatterId('')
     setMatterName('')
     setUploadToDocketwise(true)
@@ -146,36 +150,36 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
     try {
       const params = new URLSearchParams({
         page: String(page),
-        type: 'Person',
         per_page: '15',
       })
-      if (search) params.set('filter', search)
-      const response = await fetch(`/api/docketwise/contacts?${params}`)
+      if (search) params.set('search', search)
+      const response = await fetch(`/api/contacts?${params}`)
       if (!response.ok) throw new Error('Failed to fetch contacts')
       const data = await response.json()
 
       const options = (data.contacts || []).map(
         (contact: {
-          id: number
-          first_name: string | null
-          last_name: string | null
-          company_name: string | null
+          id: string
+          firstName: string
+          lastName: string | null
+          companyName: string | null
+          docketwiseId: number | null
         }) => {
           const name =
-            [contact.first_name, contact.last_name].filter(Boolean).join(' ') ||
-            contact.company_name ||
+            [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
+            contact.companyName ||
             'Unknown'
           return {
-            value: String(contact.id),
+            value: contact.id,
             label: name,
-            docketwiseId: contact.id,
+            docketwiseId: contact.docketwiseId ?? undefined,
           }
         },
       )
 
       return {
         options,
-        hasMore: data.pagination?.nextPage !== null,
+        hasMore: data.pagination?.hasMore ?? false,
       }
     } catch (error) {
       console.error('Failed to fetch clients:', error)
@@ -185,12 +189,12 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
 
   const fetchMatters = useCallback(
     async (search: string, page: number) => {
-      if (!clientId) return { options: [], hasMore: false }
+      if (!clientDocketwiseId) return { options: [], hasMore: false }
 
       try {
         const params = new URLSearchParams({
           page: String(page),
-          client_id: clientId,
+          client_id: String(clientDocketwiseId),
           per_page: '15',
         })
         if (search) params.set('filter', search)
@@ -215,7 +219,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
         return { options: [], hasMore: false }
       }
     },
-    [clientId],
+    [clientDocketwiseId],
   )
 
   const formatFileSize = (bytes: number) => {
@@ -313,18 +317,32 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                   setMatterName('')
                   setMatterKey((k) => k + 1)
                 }}
-                onOptionSelect={(opt) => setClientName(opt?.label || '')}
+                onOptionSelect={(opt) => {
+                  setClientName(opt?.label || '')
+                  const dwId = opt?.docketwiseId ?? null
+                  setClientDocketwiseId(dwId)
+                  if (dwId) {
+                    // Docketwise contact — re-enable upload option
+                    setUploadToDocketwise(true)
+                  } else {
+                    // Manual contact — disable Docketwise upload + clear matter
+                    setUploadToDocketwise(false)
+                    setMatterId('')
+                    setMatterName('')
+                  }
+                }}
                 placeholder="Select contact..."
                 searchPlaceholder="Search contacts..."
                 fetchOptions={fetchClients}
               />
             </Field>
 
-            {/* Upload to Docketwise checkbox */}
+            {/* Upload to Docketwise checkbox — only for Docketwise contacts */}
             <label className="flex cursor-pointer items-center gap-2">
               <input
                 type="checkbox"
                 checked={uploadToDocketwise}
+                disabled={!clientDocketwiseId}
                 onChange={(e) => {
                   setUploadToDocketwise(e.target.checked)
                   if (!e.target.checked) {
@@ -332,9 +350,16 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                     setMatterName('')
                   }
                 }}
-                className="h-4 w-4 rounded border-input accent-primary"
+                className="h-4 w-4 rounded border-input accent-primary disabled:opacity-50"
               />
-              <span className="text-sm font-medium">Upload to Docketwise</span>
+              <span className="text-sm font-medium">
+                Upload to Docketwise
+                {!clientDocketwiseId && clientId && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    (manual contact)
+                  </span>
+                )}
+              </span>
             </label>
 
             {uploadToDocketwise && (
@@ -355,7 +380,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                       : 'Select a contact first.'
                   }
                   fetchOptions={fetchMatters}
-                  disabled={!clientId}
+                  disabled={!clientDocketwiseId}
                 />
               </Field>
             )}

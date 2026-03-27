@@ -53,22 +53,16 @@ function ContactDetailPage() {
       if (!res.ok) throw new Error('Failed')
       const data = await res.json()
       setFiles(data.files || [])
-      // Try to get the contact name from Docketwise
+      // Get the contact name from our local DB
       if (!contactName) {
-        const contactRes = await fetch(
-          `/api/docketwise/contacts?filter=${contactId}`,
-        )
+        const contactRes = await fetch(`/api/contacts/${contactId}`)
         if (contactRes.ok) {
           const contactData = await contactRes.json()
-          const contact = (contactData.contacts || []).find(
-            (c: { id: number }) => String(c.id) === contactId,
-          )
-          if (contact) {
+          const c = contactData.contact
+          if (c) {
             const name =
-              [contact.first_name, contact.last_name]
-                .filter(Boolean)
-                .join(' ') ||
-              contact.company_name ||
+              [c.firstName, c.lastName].filter(Boolean).join(' ') ||
+              c.companyName ||
               null
             setContactName(name)
           }

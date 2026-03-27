@@ -178,6 +178,26 @@ model DropboxAccounts {
     updatedAt    DateTime @default(now()) @updatedAt
 }
 
+model Contacts {
+    id                  String    @id @default(ulid())
+    firstName           String
+    lastName            String?
+    middleName          String?
+    companyName         String?
+    email               String?
+    lead                Boolean   @default(false)
+
+    // Docketwise link (null = outside/manual client)
+    docketwiseId        Int?      @unique
+    docketwiseUpdatedAt DateTime?
+
+    createdAt           DateTime  @default(now())
+    updatedAt           DateTime  @default(now()) @updatedAt
+
+    @@index([docketwiseId])
+    @@index([firstName, lastName])
+}
+
 model ScanJobs {
     id              String          @id @default(ulid())
     userId          String

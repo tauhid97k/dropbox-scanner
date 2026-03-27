@@ -28,13 +28,12 @@ export const Route = createFileRoute('/api/files')({
 
         try {
           const where: Record<string, unknown> = {}
-          if (clientId) {
-            where.OR = [
-              { clientName: { contains: clientId } },
-              { scanJob: { selectedClient: { contains: clientId } } },
-            ]
+          const scanJobFilter: Record<string, unknown> = {}
+          if (clientId) scanJobFilter.selectedClient = clientId
+          if (matterId) scanJobFilter.selectedMatter = matterId
+          if (Object.keys(scanJobFilter).length > 0) {
+            where.scanJob = scanJobFilter
           }
-          if (matterId) where.scanJob = { selectedMatter: matterId }
           if (search) {
             where.OR = [
               { fileName: { contains: search, mode: 'insensitive' } },
