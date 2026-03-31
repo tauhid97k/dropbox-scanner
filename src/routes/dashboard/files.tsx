@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { UploadToDocketwiseModal } from '@/components/upload-to-docketwise-modal'
 import { isDropboxConnected } from '@/lib/auth-tokens'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
@@ -28,6 +29,7 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  Upload,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -56,6 +58,11 @@ function FilesPage() {
   const [activeFolder, setActiveFolder] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [docketwiseModal, setDocketwiseModal] = useState<{
+    open: boolean
+    filePath: string
+    fileName: string
+  }>({ open: false, filePath: '', fileName: '' })
 
   const fetchFolders = useCallback(async () => {
     setIsLoading(true)
@@ -259,18 +266,35 @@ function FilesPage() {
                           {file.path}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              window.open(
-                                `/api/dropbox/download?path=${encodeURIComponent(file.path)}`,
-                                '_blank',
-                              )
-                            }}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Download file"
+                              onClick={() => {
+                                window.open(
+                                  `/api/dropbox/download?path=${encodeURIComponent(file.path)}`,
+                                  '_blank',
+                                )
+                              }}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="Upload to Docketwise"
+                              onClick={() =>
+                                setDocketwiseModal({
+                                  open: true,
+                                  filePath: file.path,
+                                  fileName: file.name,
+                                })
+                              }
+                            >
+                              <Upload className="h-4 w-4 text-blue-500" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -299,6 +323,14 @@ function FilesPage() {
           )}
         </CardContent>
       </Card>
+      <UploadToDocketwiseModal
+        open={docketwiseModal.open}
+        onOpenChange={(open) =>
+          setDocketwiseModal((prev) => ({ ...prev, open }))
+        }
+        filePath={docketwiseModal.filePath}
+        fileName={docketwiseModal.fileName}
+      />
     </div>
   )
 }
