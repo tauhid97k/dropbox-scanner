@@ -175,6 +175,7 @@ export const auth = betterAuth({
           scopes: [
             'files.content.write',
             'files.content.read',
+            'files.metadata.read',
             'account_info.read',
           ],
           pkce: true,

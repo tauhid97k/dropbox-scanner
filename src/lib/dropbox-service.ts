@@ -43,7 +43,7 @@ export class DropboxService {
     return queuePath
   }
 
-  // Move a file from one path to another (Queue → client folder)
+  // Move a file from one path to another (Queue → /Scans/{clientFolder}/)
   async moveFile(
     fromPath: string,
     toFolder: string,
@@ -60,6 +60,30 @@ export class DropboxService {
     })
 
     // Return actual path (autorename may change it)
+    const metadata = result.result.metadata as { path_display?: string }
+    return metadata.path_display || toPath
+  }
+
+  // Move a file to /Scans/Unknown_Clients/{subFolder}/ for unmatched physical scans
+  async moveFileToUnknown(
+    fromPath: string,
+    subFolder: string,
+    newFileName: string,
+  ): Promise<string> {
+    const normalizedSub = this.normalizeClientName(subFolder)
+    const folderPath = `/Scans/Unknown_Clients/${normalizedSub}`
+    await this.getOrCreateFolder('/Scans/Unknown_Clients')
+    await this.getOrCreateFolder(folderPath)
+
+    const sanitized = newFileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const toPath = `${folderPath}/${sanitized}`
+
+    const result = await this.client.filesMoveV2({
+      from_path: fromPath,
+      to_path: toPath,
+      autorename: true,
+    })
+
     const metadata = result.result.metadata as { path_display?: string }
     return metadata.path_display || toPath
   }
@@ -179,6 +203,59 @@ export class DropboxService {
       id: response.result.account_id,
       email: response.result.email,
       name: response.result.name.display_name,
+    }
+  }
+
+  // Initialize cursor for /Scanned folder — call once per account to establish baseline.
+  // Returns the cursor WITHOUT processing existing files (safe first-run).
+  async initScannedFolderCursor(): Promise<string> {
+    await this.getOrCreateFolder('/Scanned')
+    const result = await this.client.filesListFolder({
+      path: '/Scanned',
+      recursive: false,
+    })
+    // Page through to get the latest cursor without returning entries
+    let cursor = result.result.cursor
+    let hasMore = result.result.has_more
+    while (hasMore) {
+      const cont = await this.client.filesListFolderContinue({ cursor })
+      cursor = cont.result.cursor
+      hasMore = cont.result.has_more
+    }
+    return cursor
+  }
+
+  // Poll for new changes using a stored cursor. Returns new file entries + updated cursor.
+  async getScannedFolderChanges(cursor: string): Promise<{
+    entries: Array<{
+      tag: string
+      name: string
+      pathLower: string
+      pathDisplay: string
+    }>
+    cursor: string
+    hasMore: boolean
+  }> {
+    const result = await this.client.filesListFolderContinue({ cursor })
+    const entries = result.result.entries
+      .filter((e) => e['.tag'] === 'file')
+      .map((e) => {
+        const f = e as unknown as {
+          name: string
+          path_lower?: string
+          path_display?: string
+        }
+        return {
+          tag: 'file',
+          name: f.name,
+          pathLower: f.path_lower || '',
+          pathDisplay: f.path_display || f.path_lower || '',
+        }
+      })
+    return {
+      entries,
+      cursor: result.result.cursor,
+      hasMore: result.result.has_more,
     }
   }
 

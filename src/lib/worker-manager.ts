@@ -235,7 +235,6 @@ export async function ensureWorkersStarted() {
             await prisma.scanJobs.update({
               where: { id: scanJobId },
               data: {
-                docketwiseDocId: 'N/A',
                 progress: 90,
                 stage: 'email',
               },
@@ -794,6 +793,343 @@ export async function ensureWorkersStarted() {
       console.error(`[Worker] Email job ${job?.id} failed:`, err.message)
     })
 
+    // --- Physical Scan Folder Worker ---
+    // Triggered by Dropbox webhooks. Polls /Scanned for new files using cursor,
+    // runs Gemini OCR, matches/creates client folder, moves file to /Scans.
+    const { getEmailQueue: getEmailQueueForScan } = await import('@/lib/queues')
+
+    const scanFolderWorker = new Worker(
+      'scan-folder-check',
+      async (job) => {
+        const { accountId } = job.data as { accountId: string }
+
+        const dropbox = await createDropboxService()
+        if (!dropbox) {
+          throw new Error(
+            'Dropbox not connected. Please connect Dropbox in Settings.',
+          )
+        }
+
+        // ── Get or initialise cursor for this account ──
+        let cursorRecord = await prisma.dropboxCursor.findUnique({
+          where: { accountId },
+        })
+
+        if (!cursorRecord) {
+          // First time — establish baseline cursor without processing existing files
+          const initCursor = await dropbox.initScannedFolderCursor()
+          cursorRecord = await prisma.dropboxCursor.create({
+            data: { accountId, cursor: initCursor },
+          })
+          console.log(
+            `[ScanWorker] Initialized cursor for account ${accountId}`,
+          )
+          return { initialized: true, processed: 0 }
+        }
+
+        // ── Collect all new file entries via cursor pagination ──
+        const newFiles: Array<{
+          tag: string
+          name: string
+          pathLower: string
+          pathDisplay: string
+        }> = []
+
+        let currentCursor = cursorRecord.cursor
+        let hasMore = true
+
+        while (hasMore) {
+          const changes = await dropbox.getScannedFolderChanges(currentCursor)
+          // Only care about files directly in /Scanned (not subfolders)
+          const scannedFiles = changes.entries.filter(
+            (e) =>
+              e.pathLower.startsWith('/scanned/') &&
+              !e.pathLower.slice('/scanned/'.length).includes('/'),
+          )
+          newFiles.push(...scannedFiles)
+          currentCursor = changes.cursor
+          hasMore = changes.hasMore
+        }
+
+        // Save updated cursor immediately
+        await prisma.dropboxCursor.update({
+          where: { accountId },
+          data: { cursor: currentCursor },
+        })
+
+        if (newFiles.length === 0) {
+          console.log(`[ScanWorker] No new files in /Scanned for ${accountId}`)
+          return { processed: 0 }
+        }
+
+        console.log(
+          `[ScanWorker] Processing ${newFiles.length} file(s) from /Scanned`,
+        )
+
+        const { analyzeDocument, buildSmartFileName } =
+          await import('@/lib/gemini-service')
+
+        // Find a system user to associate jobs with (first user in DB)
+        const systemUser = await prisma.users.findFirst({
+          select: { id: true },
+          orderBy: { createdAt: 'asc' },
+        })
+        const userId = systemUser?.id || 'system'
+
+        let processed = 0
+
+        for (const file of newFiles) {
+          try {
+            // Skip files already recorded (idempotency via originalName path check)
+            const alreadyExists = await prisma.scanJobs.findFirst({
+              where: {
+                source: 'physical-scan',
+                originalName: file.pathDisplay,
+              },
+            })
+            if (alreadyExists) {
+              console.log(
+                `[ScanWorker] Skipping already-processed file: ${file.name}`,
+              )
+              continue
+            }
+
+            // ── Download file ──
+            const buffer = await dropbox.downloadFile(file.pathDisplay)
+            const fileSize = buffer.length
+            const mimeType = guessMimeType(file.name)
+
+            // ── Gemini OCR ──
+            let analysis
+            let smartFileName: string
+            try {
+              analysis = await analyzeDocument(buffer, file.name)
+              smartFileName = buildSmartFileName(analysis, file.name)
+            } catch (aiErr) {
+              console.error(
+                `[ScanWorker] Gemini failed for ${file.name}:`,
+                aiErr,
+              )
+              // Use original name with today's date as fallback (MM-DD-YY to match buildSmartFileName)
+              const now = new Date()
+              const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
+              const dd = String(now.getUTCDate()).padStart(2, '0')
+              const yy = String(now.getUTCFullYear()).slice(-2)
+              const ext = file.name.includes('.')
+                ? '.' + file.name.split('.').pop()!.toLowerCase()
+                : ''
+              smartFileName = `Document_Unknown-Client_${mm}-${dd}-${yy}${ext}`
+              analysis = {
+                isRfe: false,
+                documentType: 'Document',
+                clientName: null,
+                dateIssued: null,
+                confidence: 0,
+                contentSummary: null,
+                summary: null,
+              }
+            }
+
+            // ── Resolve folder name + destination ──
+            const extractedName = analysis.clientName?.trim() || null
+            let folderName: string
+            let matchedContactId: string | null = null
+            let isUnknown = false // true → route to /Scans/Unknown_Clients/
+
+            if (extractedName) {
+              // Exact case-insensitive match on full name or company name
+              const nameParts = extractedName.trim().split(/\s+/)
+              const firstName = nameParts[0] ?? ''
+              const lastName =
+                nameParts.length > 1 ? nameParts.slice(1).join(' ') : null
+
+              const orClauses: object[] = [
+                {
+                  companyName: {
+                    equals: extractedName,
+                    mode: 'insensitive',
+                  },
+                },
+              ]
+
+              if (lastName) {
+                orClauses.push({
+                  firstName: { equals: firstName, mode: 'insensitive' },
+                  lastName: { equals: lastName, mode: 'insensitive' },
+                })
+              } else {
+                orClauses.push({
+                  firstName: { equals: firstName, mode: 'insensitive' },
+                  lastName: null,
+                })
+              }
+
+              const contact = await prisma.contacts.findFirst({
+                where: { OR: orClauses },
+              })
+
+              if (contact) {
+                // ── Known client → /Scans/{Name}_{id}/ ──
+                matchedContactId = contact.id
+                const displayName =
+                  [contact.firstName, contact.lastName]
+                    .filter(Boolean)
+                    .join(' ') ||
+                  contact.companyName ||
+                  extractedName
+                const suffix = contact.docketwiseId
+                  ? String(contact.docketwiseId)
+                  : contact.id.substring(0, 6)
+                folderName = `${displayName.replace(/\s+/g, '_')}_${suffix}`
+                isUnknown = false
+              } else {
+                // ── Name found but no DB match → /Scans/Unknown_Clients/{Name}_{date}/ ──
+                const today = new Date().toISOString().slice(0, 10)
+                folderName = `${extractedName.replace(/\s+/g, '_')}_${today}`
+                isUnknown = true
+              }
+            } else {
+              // ── No name extracted → /Scans/Unknown_Clients/Unknown_Client_{date}/ ──
+              const today = new Date().toISOString().slice(0, 10)
+              folderName = `Unknown_Client_${today}`
+              isUnknown = true
+            }
+
+            // ── Create ScanJob record ──
+            const { createHash } = await import('node:crypto')
+            const contentHash = createHash('sha256')
+              .update(buffer)
+              .digest('hex')
+
+            const scanJob = await prisma.scanJobs.create({
+              data: {
+                userId,
+                originalName: file.pathDisplay,
+                contentHash,
+                mimeType,
+                fileSize,
+                status: 'processing',
+                progress: 40,
+                stage: 'dropbox',
+                source: 'physical-scan',
+                uploadToDocketwise: false,
+                isRfe: analysis.isRfe,
+                aiAnalysis: analysis as object,
+                aiConfidence: analysis.confidence,
+                renamedFileName: smartFileName,
+                selectedClient: matchedContactId ?? null,
+                clientName: extractedName ?? undefined,
+              },
+            })
+
+            // ── Move file to correct destination ──
+            // Known client  → /Scans/{Name}_{id}/{smartFileName}
+            // Unknown/no match → /Scans/Unknown_Clients/{Name_date}/{smartFileName}
+            const dropboxPath = isUnknown
+              ? await dropbox.moveFileToUnknown(
+                  file.pathDisplay,
+                  folderName,
+                  smartFileName,
+                )
+              : await dropbox.moveFile(
+                  file.pathDisplay,
+                  folderName,
+                  smartFileName,
+                )
+
+            // ── Create FileMetadata ──
+            await prisma.fileMetadata.create({
+              data: {
+                scanJobId: scanJob.id,
+                dropboxPath,
+                clientName: extractedName || 'Unknown Client',
+                fileName: smartFileName,
+                fileType: mimeType,
+                uploadedBy: userId,
+              },
+            })
+
+            // ── Mark complete ──
+            await prisma.scanJobs.update({
+              where: { id: scanJob.id },
+              data: {
+                status: 'completed',
+                progress: 100,
+                stage: 'completed',
+                dropboxPath,
+                errorMessage: null,
+              },
+            })
+
+            // ── Email notification ──
+            const emailSettings = await prisma.emailSettings.findFirst({
+              where: { userId },
+            })
+
+            if (
+              emailSettings?.notifyOnUpload &&
+              emailSettings.recipients.length > 0
+            ) {
+              const emailLog = await prisma.emailLog.create({
+                data: {
+                  scanJobId: scanJob.id,
+                  recipients: emailSettings.recipients,
+                  subject: `Physical Scan Processed: ${smartFileName}`,
+                  status: 'pending',
+                  fileName: smartFileName,
+                  fileSize,
+                  fileType: mimeType,
+                  clientName: extractedName || 'Unknown Client',
+                  template: 'upload-success',
+                },
+              })
+
+              const emailQueue = await getEmailQueueForScan()
+              await emailQueue.add('send-notification', {
+                emailLogId: emailLog.id,
+                to: emailSettings.recipients,
+                subject: `Physical Scan Processed: ${smartFileName}`,
+                template: 'upload-success' as const,
+                data: {
+                  clientName: extractedName || 'Unknown Client',
+                  matterName: 'N/A (physical scan)',
+                  fileName: smartFileName,
+                  fileSize,
+                  fileType: mimeType,
+                  dropboxPath,
+                  docketwiseDocId: 'N/A (skipped)',
+                },
+              })
+            }
+
+            console.log(
+              `[ScanWorker] ✓ Processed ${file.name} → ${dropboxPath}`,
+            )
+            processed++
+          } catch (fileErr) {
+            console.error(
+              `[ScanWorker] Failed to process ${file.name}:`,
+              fileErr,
+            )
+            // Continue with other files — don't abort the whole batch
+          }
+        }
+
+        return { processed, total: newFiles.length }
+      },
+      { connection, concurrency: 1 },
+    )
+
+    scanFolderWorker.on('ready', () =>
+      console.log('[Worker] scan-folder-check ready'),
+    )
+    scanFolderWorker.on('failed', (job, err) => {
+      console.error(`[Worker] Scan-folder job ${job?.id} failed:`, err.message)
+    })
+    scanFolderWorker.on('completed', (job, result) => {
+      console.log(`[Worker] Scan-folder job ${job.id} done:`, result)
+    })
+
     console.log(
       '[Workers] All workers registered, waiting for Redis connection...',
     )
@@ -801,4 +1137,21 @@ export async function ensureWorkersStarted() {
     _started = false
     console.error('[Workers] Failed to start workers:', error)
   }
+}
+
+// Guess MIME type from file extension for physically scanned files
+function guessMimeType(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() || ''
+  const map: Record<string, string> = {
+    pdf: 'application/pdf',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    tiff: 'image/tiff',
+    tif: 'image/tiff',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  }
+  return map[ext] || 'application/octet-stream'
 }

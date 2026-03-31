@@ -27,14 +27,18 @@ import { Route as ApiNotificationsRouteImport } from './routes/api.notifications
 import { Route as ApiFilesRouteImport } from './routes/api.files'
 import { Route as ApiEmailSettingsRouteImport } from './routes/api.email-settings'
 import { Route as ApiDisconnectRouteImport } from './routes/api.disconnect'
+import { Route as ApiContactsRouteImport } from './routes/api.contacts'
 import { Route as mainAuthRouteRouteImport } from './routes/(main)/auth/route'
 import { Route as DashboardContactsIndexRouteImport } from './routes/dashboard/contacts.index'
 import { Route as DashboardContactsContactIdRouteImport } from './routes/dashboard/contacts.$contactId'
+import { Route as ApiDropboxWebhookRouteImport } from './routes/api.dropbox.webhook'
 import { Route as ApiDropboxFilesRouteImport } from './routes/api.dropbox.files'
 import { Route as ApiDropboxDownloadRouteImport } from './routes/api.dropbox.download'
 import { Route as ApiDocketwiseStatusRouteImport } from './routes/api.docketwise.status'
 import { Route as ApiDocketwiseMattersRouteImport } from './routes/api.docketwise.matters'
 import { Route as ApiDocketwiseContactsRouteImport } from './routes/api.docketwise.contacts'
+import { Route as ApiContactsSyncRouteImport } from './routes/api.contacts.sync'
+import { Route as ApiContactsContactIdRouteImport } from './routes/api.contacts.$contactId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as mainAuthSignUpRouteImport } from './routes/(main)/auth/sign-up'
 import { Route as mainAuthSignInRouteImport } from './routes/(main)/auth/sign-in'
@@ -130,6 +134,11 @@ const ApiDisconnectRoute = ApiDisconnectRouteImport.update({
   path: '/api/disconnect',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiContactsRoute = ApiContactsRouteImport.update({
+  id: '/api/contacts',
+  path: '/api/contacts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const mainAuthRouteRoute = mainAuthRouteRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -146,6 +155,11 @@ const DashboardContactsContactIdRoute =
     path: '/contacts/$contactId',
     getParentRoute: () => DashboardRouteRoute,
   } as any)
+const ApiDropboxWebhookRoute = ApiDropboxWebhookRouteImport.update({
+  id: '/api/dropbox/webhook',
+  path: '/api/dropbox/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDropboxFilesRoute = ApiDropboxFilesRouteImport.update({
   id: '/api/dropbox/files',
   path: '/api/dropbox/files',
@@ -170,6 +184,16 @@ const ApiDocketwiseContactsRoute = ApiDocketwiseContactsRouteImport.update({
   id: '/api/docketwise/contacts',
   path: '/api/docketwise/contacts',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiContactsSyncRoute = ApiContactsSyncRouteImport.update({
+  id: '/sync',
+  path: '/sync',
+  getParentRoute: () => ApiContactsRoute,
+} as any)
+const ApiContactsContactIdRoute = ApiContactsContactIdRouteImport.update({
+  id: '/$contactId',
+  path: '/$contactId',
+  getParentRoute: () => ApiContactsRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -201,6 +225,7 @@ const mainAuthRequestPasswordResetRoute =
 export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/contacts': typeof ApiContactsRouteWithChildren
   '/api/disconnect': typeof ApiDisconnectRoute
   '/api/email-settings': typeof ApiEmailSettingsRoute
   '/api/files': typeof ApiFilesRoute
@@ -222,16 +247,20 @@ export interface FileRoutesByFullPath {
   '/auth/sign-in': typeof mainAuthSignInRoute
   '/auth/sign-up': typeof mainAuthSignUpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/contacts/$contactId': typeof ApiContactsContactIdRoute
+  '/api/contacts/sync': typeof ApiContactsSyncRoute
   '/api/docketwise/contacts': typeof ApiDocketwiseContactsRoute
   '/api/docketwise/matters': typeof ApiDocketwiseMattersRoute
   '/api/docketwise/status': typeof ApiDocketwiseStatusRoute
   '/api/dropbox/download': typeof ApiDropboxDownloadRoute
   '/api/dropbox/files': typeof ApiDropboxFilesRoute
+  '/api/dropbox/webhook': typeof ApiDropboxWebhookRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
   '/dashboard/contacts/': typeof DashboardContactsIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/contacts': typeof ApiContactsRouteWithChildren
   '/api/disconnect': typeof ApiDisconnectRoute
   '/api/email-settings': typeof ApiEmailSettingsRoute
   '/api/files': typeof ApiFilesRoute
@@ -253,11 +282,14 @@ export interface FileRoutesByTo {
   '/auth/sign-in': typeof mainAuthSignInRoute
   '/auth/sign-up': typeof mainAuthSignUpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/contacts/$contactId': typeof ApiContactsContactIdRoute
+  '/api/contacts/sync': typeof ApiContactsSyncRoute
   '/api/docketwise/contacts': typeof ApiDocketwiseContactsRoute
   '/api/docketwise/matters': typeof ApiDocketwiseMattersRoute
   '/api/docketwise/status': typeof ApiDocketwiseStatusRoute
   '/api/dropbox/download': typeof ApiDropboxDownloadRoute
   '/api/dropbox/files': typeof ApiDropboxFilesRoute
+  '/api/dropbox/webhook': typeof ApiDropboxWebhookRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
   '/dashboard/contacts': typeof DashboardContactsIndexRoute
 }
@@ -266,6 +298,7 @@ export interface FileRoutesById {
   '/(main)': typeof mainRouteRouteWithChildren
   '/dashboard': typeof DashboardRouteRouteWithChildren
   '/(main)/auth': typeof mainAuthRouteRouteWithChildren
+  '/api/contacts': typeof ApiContactsRouteWithChildren
   '/api/disconnect': typeof ApiDisconnectRoute
   '/api/email-settings': typeof ApiEmailSettingsRoute
   '/api/files': typeof ApiFilesRoute
@@ -287,11 +320,14 @@ export interface FileRoutesById {
   '/(main)/auth/sign-in': typeof mainAuthSignInRoute
   '/(main)/auth/sign-up': typeof mainAuthSignUpRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/contacts/$contactId': typeof ApiContactsContactIdRoute
+  '/api/contacts/sync': typeof ApiContactsSyncRoute
   '/api/docketwise/contacts': typeof ApiDocketwiseContactsRoute
   '/api/docketwise/matters': typeof ApiDocketwiseMattersRoute
   '/api/docketwise/status': typeof ApiDocketwiseStatusRoute
   '/api/dropbox/download': typeof ApiDropboxDownloadRoute
   '/api/dropbox/files': typeof ApiDropboxFilesRoute
+  '/api/dropbox/webhook': typeof ApiDropboxWebhookRoute
   '/dashboard/contacts/$contactId': typeof DashboardContactsContactIdRoute
   '/dashboard/contacts/': typeof DashboardContactsIndexRoute
 }
@@ -300,6 +336,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/dashboard'
     | '/auth'
+    | '/api/contacts'
     | '/api/disconnect'
     | '/api/email-settings'
     | '/api/files'
@@ -321,16 +358,20 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-up'
     | '/api/auth/$'
+    | '/api/contacts/$contactId'
+    | '/api/contacts/sync'
     | '/api/docketwise/contacts'
     | '/api/docketwise/matters'
     | '/api/docketwise/status'
     | '/api/dropbox/download'
     | '/api/dropbox/files'
+    | '/api/dropbox/webhook'
     | '/dashboard/contacts/$contactId'
     | '/dashboard/contacts/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/api/contacts'
     | '/api/disconnect'
     | '/api/email-settings'
     | '/api/files'
@@ -352,11 +393,14 @@ export interface FileRouteTypes {
     | '/auth/sign-in'
     | '/auth/sign-up'
     | '/api/auth/$'
+    | '/api/contacts/$contactId'
+    | '/api/contacts/sync'
     | '/api/docketwise/contacts'
     | '/api/docketwise/matters'
     | '/api/docketwise/status'
     | '/api/dropbox/download'
     | '/api/dropbox/files'
+    | '/api/dropbox/webhook'
     | '/dashboard/contacts/$contactId'
     | '/dashboard/contacts'
   id:
@@ -364,6 +408,7 @@ export interface FileRouteTypes {
     | '/(main)'
     | '/dashboard'
     | '/(main)/auth'
+    | '/api/contacts'
     | '/api/disconnect'
     | '/api/email-settings'
     | '/api/files'
@@ -385,11 +430,14 @@ export interface FileRouteTypes {
     | '/(main)/auth/sign-in'
     | '/(main)/auth/sign-up'
     | '/api/auth/$'
+    | '/api/contacts/$contactId'
+    | '/api/contacts/sync'
     | '/api/docketwise/contacts'
     | '/api/docketwise/matters'
     | '/api/docketwise/status'
     | '/api/dropbox/download'
     | '/api/dropbox/files'
+    | '/api/dropbox/webhook'
     | '/dashboard/contacts/$contactId'
     | '/dashboard/contacts/'
   fileRoutesById: FileRoutesById
@@ -397,6 +445,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   mainRouteRoute: typeof mainRouteRouteWithChildren
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  ApiContactsRoute: typeof ApiContactsRouteWithChildren
   ApiDisconnectRoute: typeof ApiDisconnectRoute
   ApiEmailSettingsRoute: typeof ApiEmailSettingsRoute
   ApiFilesRoute: typeof ApiFilesRoute
@@ -410,6 +459,7 @@ export interface RootRouteChildren {
   ApiDocketwiseStatusRoute: typeof ApiDocketwiseStatusRoute
   ApiDropboxDownloadRoute: typeof ApiDropboxDownloadRoute
   ApiDropboxFilesRoute: typeof ApiDropboxFilesRoute
+  ApiDropboxWebhookRoute: typeof ApiDropboxWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -540,6 +590,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDisconnectRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/contacts': {
+      id: '/api/contacts'
+      path: '/api/contacts'
+      fullPath: '/api/contacts'
+      preLoaderRoute: typeof ApiContactsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/(main)/auth': {
       id: '/(main)/auth'
       path: '/auth'
@@ -560,6 +617,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/contacts/$contactId'
       preLoaderRoute: typeof DashboardContactsContactIdRouteImport
       parentRoute: typeof DashboardRouteRoute
+    }
+    '/api/dropbox/webhook': {
+      id: '/api/dropbox/webhook'
+      path: '/api/dropbox/webhook'
+      fullPath: '/api/dropbox/webhook'
+      preLoaderRoute: typeof ApiDropboxWebhookRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/dropbox/files': {
       id: '/api/dropbox/files'
@@ -595,6 +659,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/docketwise/contacts'
       preLoaderRoute: typeof ApiDocketwiseContactsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/contacts/sync': {
+      id: '/api/contacts/sync'
+      path: '/sync'
+      fullPath: '/api/contacts/sync'
+      preLoaderRoute: typeof ApiContactsSyncRouteImport
+      parentRoute: typeof ApiContactsRoute
+    }
+    '/api/contacts/$contactId': {
+      id: '/api/contacts/$contactId'
+      path: '/$contactId'
+      fullPath: '/api/contacts/$contactId'
+      preLoaderRoute: typeof ApiContactsContactIdRouteImport
+      parentRoute: typeof ApiContactsRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -696,9 +774,24 @@ const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
   DashboardRouteRouteChildren,
 )
 
+interface ApiContactsRouteChildren {
+  ApiContactsContactIdRoute: typeof ApiContactsContactIdRoute
+  ApiContactsSyncRoute: typeof ApiContactsSyncRoute
+}
+
+const ApiContactsRouteChildren: ApiContactsRouteChildren = {
+  ApiContactsContactIdRoute: ApiContactsContactIdRoute,
+  ApiContactsSyncRoute: ApiContactsSyncRoute,
+}
+
+const ApiContactsRouteWithChildren = ApiContactsRoute._addFileChildren(
+  ApiContactsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   mainRouteRoute: mainRouteRouteWithChildren,
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  ApiContactsRoute: ApiContactsRouteWithChildren,
   ApiDisconnectRoute: ApiDisconnectRoute,
   ApiEmailSettingsRoute: ApiEmailSettingsRoute,
   ApiFilesRoute: ApiFilesRoute,
@@ -712,6 +805,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDocketwiseStatusRoute: ApiDocketwiseStatusRoute,
   ApiDropboxDownloadRoute: ApiDropboxDownloadRoute,
   ApiDropboxFilesRoute: ApiDropboxFilesRoute,
+  ApiDropboxWebhookRoute: ApiDropboxWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

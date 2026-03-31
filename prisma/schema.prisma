@@ -231,6 +231,7 @@ model ScanJobs {
     // Pipeline flags
     uploadToDocketwise Boolean      @default(true)  // User checkbox — upload to Docketwise?
     queueFilePath      String?                       // Dropbox /Scans/Queue path for resume
+    source             String          @default("upload") // "upload" | "physical-scan"
 
     // Results
     dropboxPath     String?
@@ -343,4 +344,11 @@ model Todos {
     user        Users     @relation(fields: [userId], references: [id], onDelete: Cascade)
     createdAt   DateTime  @default(now())
     updatedAt   DateTime  @updatedAt
+}
+
+model DropboxCursor {
+    id        String   @id @default(ulid())
+    accountId String   @unique  // Dropbox account ID (dbid:...)
+    cursor    String            // list_folder/continue cursor
+    updatedAt DateTime @updatedAt
 }

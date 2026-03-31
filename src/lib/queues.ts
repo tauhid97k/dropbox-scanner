@@ -5,6 +5,7 @@ const connection = {
 let _fileQueue: any
 let _docketwiseQueue: any
 let _emailQueue: any
+let _scanFolderQueue: any
 
 async function getQueue(name: string, opts: Record<string, any>) {
   const { Queue } = await import('bullmq')
@@ -49,6 +50,19 @@ export async function getEmailQueue() {
   return _emailQueue
 }
 
+// Scanned folder check queue — triggered by Dropbox webhook (lazy)
+export async function getScanFolderQueue() {
+  if (!_scanFolderQueue) {
+    _scanFolderQueue = await getQueue('scan-folder-check', {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: 50,
+      removeOnFail: 20,
+    })
+  }
+  return _scanFolderQueue
+}
+
 // Types for job data
 export interface FileJobData {
   scanJobId: string
@@ -82,4 +96,8 @@ export interface EmailJobData {
   subject: string
   template: 'upload-success' | 'upload-error' | 'summary'
   data: Record<string, unknown>
+}
+
+export interface ScanFolderJobData {
+  accountId: string // Dropbox account ID (dbid:...)
 }
